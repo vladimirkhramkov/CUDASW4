@@ -634,7 +634,7 @@ struct FloatAligner{
         const int from_thread_id = 32 - ((final_out+1)/2);
 
 	if ((offset_in-group_size) <= SDIV(queryLength, 2) * 2) {
-	    printf("offset_in: %d  group_size: %d queryLength: %d SDIV(queryLength, 2) * 2): %d\n", offset_in, group_size, queryLength, SDIV(queryLength, 2) * 2));
+	    printf("offset_in: %d  group_size: %d queryLength: %d SDIV(queryLength, 2) * 2): %d\n", offset_in, group_size, queryLength, SDIV(queryLength, 2) * 2 );
     	    assert((offset_in-group_size) <= SDIV(queryLength, 2) * 2);
         }
 
