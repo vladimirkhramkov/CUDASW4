@@ -479,11 +479,6 @@ struct FloatAligner{
         float2 E_temp_in = devTempEcol[offset_in];
         offset_in += group_size;
 
-	printf("computeMiddlePass\n");
-	printf("group_size = %d\n",group_size);
-	printf("group_id = %d\n", group_id);
-	printf("offset_out = %d\n", offset_out);
-	printf("offset_in = %d\n", offset_in);
 
         float E = negInftyFloat;
         float penalty_here31;
@@ -639,14 +634,14 @@ struct FloatAligner{
         const int final_out = queryLength % 64;
         const int from_thread_id = 32 - ((final_out+1)/2);
 
-	if ((offset_in-group_size) <= SDIV(queryLength, 2) * 2) {
-	    printf("offset_in: %d  group_size: %d queryLength: %d SDIV(queryLength, 2) * 2): %d\n", offset_in, group_size, queryLength, SDIV(queryLength, 2) * 2 );
-    	    assert((offset_in-group_size) <= SDIV(queryLength, 2) * 2);
-        }
+//	if ((offset_in-group_size) <= SDIV(queryLength, 2) * 2) {
+//	    printf("offset_in: %d  group_size: %d queryLength: %d SDIV(queryLength, 2) * 2): %d\n", offset_in, group_size, queryLength, SDIV(queryLength, 2) * 2 );
+//    	    assert((offset_in-group_size) <= SDIV(queryLength, 2) * 2);
+//        }
 
         if (threadIdx.x>=from_thread_id) {
             checkHEindex(offset_out-from_thread_id, queryLength, __LINE__);
-            assert((offset_in-group_size) <= SDIV(queryLength, 2) * 2);
+//            assert((offset_in-group_size) <= SDIV(queryLength, 2) * 2);
             devTempHcol[offset_out-from_thread_id]=H_temp_out;
             devTempEcol[offset_out-from_thread_id]=E_temp_out;
         }
