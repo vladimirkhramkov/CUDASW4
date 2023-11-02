@@ -633,7 +633,12 @@ struct FloatAligner{
         const int final_out = queryLength % 64;
         const int from_thread_id = 32 - ((final_out+1)/2);
 
-        assert((offset_in-group_size) <= SDIV(queryLength, 2) * 2);
+	if ((offset_in-group_size) <= SDIV(queryLength, 2) * 2) {
+	    std::cerr << "offset_in: " << offset_in << ", group_size: " << group_size
+          << ", queryLength: " << queryLength << ", SDIV(queryLength, 2) * 2: " 
+          << SDIV(queryLength, 2) * 2 << std::endl;
+    	    assert((offset_in-group_size) <= SDIV(queryLength, 2) * 2);
+        }
 
         if (threadIdx.x>=from_thread_id) {
             checkHEindex(offset_out-from_thread_id, queryLength, __LINE__);
