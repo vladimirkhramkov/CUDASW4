@@ -479,6 +479,12 @@ struct FloatAligner{
         float2 E_temp_in = devTempEcol[offset_in];
         offset_in += group_size;
 
+	printf("computeMiddlePass\n");
+	printf("group_size = %d\n",group_size);
+	printf("group_id = %d\n", group_id);
+	printf("offset_out = %d\n", offset_out);
+	printf("offset_in = %d\n", offset_in);
+
         float E = negInftyFloat;
         float penalty_here31;
         float penalty_diag;
