@@ -24,7 +24,7 @@ struct ProgramOptions{
     int gex = -1;
     int pseudoDBLength = 0;
     int pseudoDBSize = 0;
-    cudasw4::BlosumType blosumType = cudasw4::BlosumType::BLOSUM62_20;
+    cudasw4::SubMatrixType subMatrixType = cudasw4::SubMatrixType::BLOSUM62_20;
     cudasw4::KernelType singlePassType = cudasw4::KernelType::Half2;
     cudasw4::KernelType manyPassType_small = cudasw4::KernelType::Half2;
     cudasw4::KernelType manyPassType_large = cudasw4::KernelType::Float;

@@ -15,7 +15,7 @@ enum class KernelType{
     Float
 };
 
-enum class BlosumType{
+enum class SubMatrixType{
     BLOSUM45,
     BLOSUM50,
     BLOSUM62,
@@ -410,31 +410,31 @@ std::string to_string(cudasw4::KernelType type){
 }
 
 __inline__
-std::string to_string(cudasw4::BlosumType type){
+std::string to_string(cudasw4::SubMatrixType type){
     switch(type){
-        case cudasw4::BlosumType::BLOSUM45: return "BLOSUM45";
-        case cudasw4::BlosumType::BLOSUM50: return "BLOSUM50";
-        case cudasw4::BlosumType::BLOSUM62: return "BLOSUM62";
-        case cudasw4::BlosumType::BLOSUM80: return "BLOSUM80";
-        case cudasw4::BlosumType::BLOSUM45_20: return "BLOSUM45 (20)";
-        case cudasw4::BlosumType::BLOSUM50_20: return "BLOSUM50 (20)";
-        case cudasw4::BlosumType::BLOSUM62_20: return "BLOSUM62 (20)";
-        case cudasw4::BlosumType::BLOSUM80_20: return "BLOSUM80 (20)";
+        case cudasw4::SubMatrixType::BLOSUM45: return "BLOSUM45";
+        case cudasw4::SubMatrixType::BLOSUM50: return "BLOSUM50";
+        case cudasw4::SubMatrixType::BLOSUM62: return "BLOSUM62";
+        case cudasw4::SubMatrixType::BLOSUM80: return "BLOSUM80";
+        case cudasw4::SubMatrixType::BLOSUM45_20: return "BLOSUM45 (20)";
+        case cudasw4::SubMatrixType::BLOSUM50_20: return "BLOSUM50 (20)";
+        case cudasw4::SubMatrixType::BLOSUM62_20: return "BLOSUM62 (20)";
+        case cudasw4::SubMatrixType::BLOSUM80_20: return "BLOSUM80 (20)";
         default: return "FORGOT TO NAME THIS BLOSUM TYPE";
     }
 }
 
 __inline__
-std::string to_string_nodim(cudasw4::BlosumType type){
+std::string to_string_nodim(cudasw4::SubMatrixType type){
     switch(type){
-        case cudasw4::BlosumType::BLOSUM45: return "BLOSUM45";
-        case cudasw4::BlosumType::BLOSUM50: return "BLOSUM50";
-        case cudasw4::BlosumType::BLOSUM62: return "BLOSUM62";
-        case cudasw4::BlosumType::BLOSUM80: return "BLOSUM80";
-        case cudasw4::BlosumType::BLOSUM45_20: return "BLOSUM45";
-        case cudasw4::BlosumType::BLOSUM50_20: return "BLOSUM50";
-        case cudasw4::BlosumType::BLOSUM62_20: return "BLOSUM62";
-        case cudasw4::BlosumType::BLOSUM80_20: return "BLOSUM80";
+        case cudasw4::SubMatrixType::BLOSUM45: return "BLOSUM45";
+        case cudasw4::SubMatrixType::BLOSUM50: return "BLOSUM50";
+        case cudasw4::SubMatrixType::BLOSUM62: return "BLOSUM62";
+        case cudasw4::SubMatrixType::BLOSUM80: return "BLOSUM80";
+        case cudasw4::SubMatrixType::BLOSUM45_20: return "BLOSUM45";
+        case cudasw4::SubMatrixType::BLOSUM50_20: return "BLOSUM50";
+        case cudasw4::SubMatrixType::BLOSUM62_20: return "BLOSUM62";
+        case cudasw4::SubMatrixType::BLOSUM80_20: return "BLOSUM80";
         default: return "FORGOT TO NAME THIS BLOSUM TYPE";
     }
 }

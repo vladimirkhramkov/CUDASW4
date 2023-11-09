@@ -6,7 +6,7 @@
 #include "dbdata.hpp"
 #include "length_partitions.hpp"
 #include "convert.cuh"
-#include "blosum.hpp"
+#include "sub_matrix.hpp"
 #include "types.hpp"
 #include "kernels.cuh"
 
@@ -55,30 +55,30 @@ int main(int argc, char** argv){
     const int gop = -11;
     const int gex = -1;
 
-    cudasw4::BlosumType blosumType = cudasw4::BlosumType::BLOSUM62_20;
+    cudasw4::SubMatrixType subMatrixType = cudasw4::SubMatrixType::BLOSUM62_20;
 
     cudaSetDevice(deviceId);
 
-    switch(blosumType){
-    case cudasw4::BlosumType::BLOSUM50_20:
+    switch(subMatrixType){
+    case cudasw4::SubMatrixType::BLOSUM50_20:
         {
-            const auto blosum = cudasw4::BLOSUM50_20::get1D();
+            const auto subMatrix = cudasw4::BLOSUM50_20::get1D();
             const int dim = cudasw4::BLOSUM50_20::dim;
             assert(dim == 21);
-            cudaMemcpyToSymbol(old::cBLOSUM62_dev, &(blosum[0]), dim*dim*sizeof(char));                    
+            cudaMemcpyToSymbol(old::cBLOSUM62_dev, &(subMatrix[0]), dim*dim*sizeof(char));                    
         }
         break;
-    default: //cudasw4::BlosumType::BLOSUM62_20
+    default: //cudasw4::SubMatrixType::BLOSUM62_20
         {
-            const auto blosum = cudasw4::BLOSUM62_20::get1D();
+            const auto subMatrix = cudasw4::BLOSUM62_20::get1D();
             const int dim = cudasw4::BLOSUM62_20::dim;
             assert(dim == 21);
-            cudaMemcpyToSymbol(old::cBLOSUM62_dev, &(blosum[0]), dim*dim*sizeof(char));
+            cudaMemcpyToSymbol(old::cBLOSUM62_dev, &(subMatrix[0]), dim*dim*sizeof(char));
         }
         break;
     }
 
-    setProgramWideBlosum(blosumType,{deviceId});
+    setProgramWideSubMatrix(subMatrixType,{deviceId});
 
 
     const char* letters = "ARNDCQEGHILKMFPSTWYV";
@@ -236,7 +236,7 @@ int main(int argc, char** argv){
                     helpers::GpuTimer timer1(stream, "Timer_" + std::to_string(blocksize) + "_" + std::to_string(groupsize) + "_" + std::to_string(numRegs)); \
                     for(int i = 0; i < timingLoopIters; i++){ \
                         cudasw4::call_NW_local_affine_single_pass_half2<blocksize, groupsize, numRegs>( \
-                            blosumType, \
+                            subMatrixType, \
                             d_subjects.data(),  \
                             d_scores_vec[i].data(),  \
                             d_subjectOffsets.data(),  \
@@ -281,7 +281,7 @@ int main(int argc, char** argv){
                 timer1.printGCUPS(((double(queryLength) * pseudodbSeqLength * numSubjects)));\
                 helpers::GpuTimer timer2(stream, "new " + std::to_string(blocksize) + "_" + std::to_string(groupsize) + "_" + std::to_string(numRegs)); \
                 cudaws4::call_NW_local_affine_single_pass_half2<blocksize, groupsize, numRegs>( \
-                    blosumType, \
+                    subMatrixType, \
                     d_subjects.data(),  \
                     d_scores_vec[1].data(),  \
                     d_subjectOffsets.data(),  \
@@ -542,7 +542,7 @@ int main(int argc, char** argv){
                 helpers::GpuTimer timer1(stream, "Timer_" + std::to_string(blocksize) + "_" + std::to_string(groupsize) + "_" + std::to_string(numRegs)); \
                 for(int i = 0; i < timingLoopIters; i++){ \
                     cudasw4::call_NW_local_affine_multi_pass_half2<blocksize, groupsize, numRegs>( \
-                        blosumType, \
+                        subMatrixType, \
                         d_subjects.data(),  \
                         d_scores_vec[i].data(),  \
                         d_tempH.data(), \
@@ -595,7 +595,7 @@ int main(int argc, char** argv){
                     cudaMemsetAsync(d_tempE.data(), 0, d_tempE.size() * sizeof(__half2), stream); CUERR; \
                     helpers::GpuTimer timer2(stream, "new " + std::to_string(blocksize) + "_" + std::to_string(groupsize) + "_" + std::to_string(numRegs)); \
                     cudasw4::call_NW_local_affine_multi_pass_half2<groupsize, numRegs>( \
-                        blosumType, \
+                        subMatrixType, \
                         d_subjects.data(),  \
                         d_scores_vec[1].data(),  \
                         d_tempH.data(), \
@@ -818,7 +818,7 @@ int main(int argc, char** argv){
                     cudaMemsetAsync(d_tempH.data(), 0, d_tempH.size() * sizeof(short2), stream); CUERR; \
                     cudaMemsetAsync(d_tempE.data(), 0, d_tempE.size() * sizeof(short2), stream); CUERR; \
                     cudasw4::call_NW_local_affine_read4_float_query_Protein_new<numRegs>( \
-                        blosumType, \
+                        subMatrixType, \
                         d_subjects.data(),  \
                         d_scores_vec[i].data(),  \
                         d_tempH.data(), \
@@ -865,7 +865,7 @@ int main(int argc, char** argv){
                     cudaMemsetAsync(d_tempE.data(), 0, d_tempE.size() * sizeof(short2), stream); CUERR; \
                     helpers::GpuTimer timer2(stream, "new " + std::to_string(blocksize) + "_" + std::to_string(groupsize) + "_" + std::to_string(numRegs)); \
                     cudasw4::call_NW_local_affine_read4_float_query_Protein_new<numRegs>( \
-                        blosumType, \
+                        subMatrixType, \
                         d_subjects.data(),  \
                         d_scores_vec[1].data(),  \
                         d_tempH.data(), \
@@ -1065,7 +1065,7 @@ int main(int argc, char** argv){
                     helpers::GpuTimer timer1(stream, "Timer_" + std::to_string(blocksize) + "_" + std::to_string(groupsize) + "_" + std::to_string(numRegs)); \
                     for(int i = 0; i < timingLoopIters; i++){ \
                         cudasw4::call_NW_local_affine_single_pass_dpx_s16<blocksize, groupsize, numRegs>( \
-                            blosumType, \
+                            subMatrixType, \
                             d_subjects.data(),  \
                             d_scores_vec[i].data(),  \
                             d_subjectOffsets.data(),  \
@@ -1107,7 +1107,7 @@ int main(int argc, char** argv){
                     timer1.printGCUPS(((double(queryLength) * pseudodbSeqLength * numSubjects)));\
                     helpers::GpuTimer timer2(stream, "new " + std::to_string(blocksize) + "_" + std::to_string(groupsize) + "_" + std::to_string(numRegs)); \
                     cudasw4::call_NW_local_affine_single_pass_dpx_s16<blocksize, groupsize, numRegs>( \
-                        blosumType, \
+                        subMatrixType, \
                         d_subjects.data(),  \
                         d_scores_vec[1].data(),  \
                         d_subjectOffsets.data(),  \

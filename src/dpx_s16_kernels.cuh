@@ -2,21 +2,21 @@
 #define DPX_S16_KERNELS_CUH
 
 
-#include "blosum.hpp"
+#include "sub_matrix.hpp"
 
 namespace cudasw4{
 
-template <int group_size, int numRegs, int blosumDim, class PositionsIterator> 
+template <int group_size, int numRegs, int subMatrixDim, class PositionsIterator> 
 struct DPXAligner_s16{
     static_assert(2 <= numRegs && numRegs % 2 == 0, "DPXAligner_s16 does not support odd number of numRegs");
     static_assert(1 <= group_size && group_size <= 32 && ((group_size & (group_size - 1)) == 0), "DPXAligner_s16 requires power-of-two sub-warp size");
 
     static constexpr short negInfty = -1000;
 
-    static constexpr int deviceBlosumDimCexpr = blosumDim;
-    static constexpr int deviceBlosumDimCexprSquared = deviceBlosumDimCexpr * deviceBlosumDimCexpr;
+    static constexpr int deviceSubMatrixDimCexpr = subMatrixDim;
+    static constexpr int deviceSubMatrixDimCexprSquared = deviceSubMatrixDimCexpr * deviceSubMatrixDimCexpr;
 
-    short2* shared_blosum;
+    short2* shared_matrix;
 
     int numSelected;
     int gap_open;
@@ -30,7 +30,7 @@ struct DPXAligner_s16{
 
     __device__
     DPXAligner_s16(
-        short2* shared_blosum_,
+        short2* shared_matrix_,
         const char* devChars_,
         short2* devTempHcol2_,
         short2* devTempEcol2_,
@@ -40,7 +40,7 @@ struct DPXAligner_s16{
         int numSelected_,
         int gap_open_,
         int gap_extend_
-    ) : shared_blosum(shared_blosum_),
+    ) : shared_matrix(shared_matrix_),
         devChars(devChars_),
         devTempHcol2(devTempHcol2_),
         devTempEcol2(devTempEcol2_),
@@ -51,17 +51,17 @@ struct DPXAligner_s16{
         gap_open(gap_open_),
         gap_extend(gap_extend_)
     {
-        for (int i=threadIdx.x; i<deviceBlosumDimCexprSquared; i+=blockDim.x) {
+        for (int i=threadIdx.x; i<deviceSubMatrixDimCexprSquared; i+=blockDim.x) {
             // short2 temp0;
-            // temp0.x = deviceBlosum[deviceBlosumDimCexpr*(i/deviceBlosumDimCexpr)+(i%deviceBlosumDimCexpr)];
-            // for (int j=0; j<deviceBlosumDimCexpr; j++) {
-            //     temp0.y = deviceBlosum[deviceBlosumDimCexpr*(i/deviceBlosumDimCexpr)+j];
-            //     shared_blosum[(i/deviceBlosumDimCexpr) * deviceBlosumDimCexprSquared + deviceBlosumDimCexpr*(i%deviceBlosumDimCexpr)+j]=temp0;
+            // temp0.x = deviceSubMatrix[deviceSubMatrixDimCexpr*(i/deviceSubMatrixDimCexpr)+(i%deviceSubMatrixDimCexpr)];
+            // for (int j=0; j<deviceSubMatrixDimCexpr; j++) {
+            //     temp0.y = deviceSubMatrix[deviceSubMatrixDimCexpr*(i/deviceSubMatrixDimCexpr)+j];
+            //     shared_matrix[(i/deviceSubMatrixDimCexpr) * deviceSubMatrixDimCexprSquared + deviceSubMatrixDimCexpr*(i%deviceSubMatrixDimCexpr)+j]=temp0;
             // }
-            const short first = deviceBlosum[deviceBlosumDimCexpr*(i/deviceBlosumDimCexpr)+(i%deviceBlosumDimCexpr)];
-            for (int j=0; j<deviceBlosumDimCexpr; j++) {
-                const short second = deviceBlosum[deviceBlosumDimCexpr*(i/deviceBlosumDimCexpr)+j];
-                shared_blosum[(i/deviceBlosumDimCexpr) * deviceBlosumDimCexprSquared + deviceBlosumDimCexpr*(i%deviceBlosumDimCexpr)+j]
+            const short first = deviceSubMatrix[deviceSubMatrixDimCexpr*(i/deviceSubMatrixDimCexpr)+(i%deviceSubMatrixDimCexpr)];
+            for (int j=0; j<deviceSubMatrixDimCexpr; j++) {
+                const short second = deviceSubMatrix[deviceSubMatrixDimCexpr*(i/deviceSubMatrixDimCexpr)+j];
+                shared_matrix[(i/deviceSubMatrixDimCexpr) * deviceSubMatrixDimCexprSquared + deviceSubMatrixDimCexpr*(i%deviceSubMatrixDimCexpr)+j]
                     = make_short2(first, second);
             }
         }
@@ -101,7 +101,7 @@ struct DPXAligner_s16{
         short2 (&penalty_here_array)[numRegs],
         short2 (&F_here_array)[numRegs]
     ) const{
-        const short2* const sbt_row = &shared_blosum[int(query_letter) * deviceBlosumDimCexprSquared];
+        const short2* const sbt_row = &shared_matrix[int(query_letter) * deviceSubMatrixDimCexprSquared];
 
         const short2 score2_0 = sbt_row[subject[0]];
         short2 penalty_temp0 = penalty_here_array[0];
@@ -149,7 +149,7 @@ struct DPXAligner_s16{
         short2 (&penalty_here_array)[numRegs],
         short2 (&F_here_array)[numRegs]
     ) const{
-        const short2* const sbt_row = &shared_blosum[int(query_letter) * deviceBlosumDimCexprSquared];
+        const short2* const sbt_row = &shared_matrix[int(query_letter) * deviceSubMatrixDimCexprSquared];
 
         const short2 score2_0 = sbt_row[subject[0]];
         short2 penalty_temp0 = penalty_here_array[0];
@@ -221,14 +221,14 @@ struct DPXAligner_s16{
         #pragma unroll //UNROLLHERE
         for (int i=0; i<numRegs; i++) {
 
-            if (offset_isc+numRegs*(threadIdx.x%group_size)+i >= length_S0) subject[i] = (deviceBlosumDimCexpr-1); // 20;
+            if (offset_isc+numRegs*(threadIdx.x%group_size)+i >= length_S0) subject[i] = (deviceSubMatrixDimCexpr-1); // 20;
             else{
                 
                 subject[i] = devS0[offset_isc+numRegs*(threadIdx.x%group_size)+i];
             }
 
-            if (offset_isc+numRegs*(threadIdx.x%group_size)+i >= length_S1) subject[i] += (deviceBlosumDimCexpr-1)*deviceBlosumDimCexpr; // 20*deviceBlosumDimCexpr;
-            else subject[i] += deviceBlosumDimCexpr* devS1[offset_isc+numRegs*(threadIdx.x%group_size)+i];
+            if (offset_isc+numRegs*(threadIdx.x%group_size)+i >= length_S1) subject[i] += (deviceSubMatrixDimCexpr-1)*deviceSubMatrixDimCexpr; // 20*deviceSubMatrixDimCexpr;
+            else subject[i] += deviceSubMatrixDimCexpr* devS1[offset_isc+numRegs*(threadIdx.x%group_size)+i];
         }  
     }
 
@@ -1062,7 +1062,7 @@ struct DPXAligner_s16{
 // every groupsize threads computes an alignmen score
 // devTempHcol2 and devTempEcol2 each must have length numBlocks * (blocksize / group_size) * (SDIV(queryLength, 4) * 4 + 32 * sizeof(char4));
 
-template <int blocksize, int group_size, int numRegs, int blosumDim, class ScoreOutputIterator, class PositionsIterator> 
+template <int blocksize, int group_size, int numRegs, int subMatrixDim, class ScoreOutputIterator, class PositionsIterator> 
 #if __CUDA_ARCH__ >= 800
 __launch_bounds__(blocksize,2)
 //__launch_bounds__(512,1)
@@ -1092,12 +1092,12 @@ void NW_local_affine_multi_pass_dpx_s16(
     __builtin_assume(blockDim.x == blocksize);
     __builtin_assume(blockDim.x % group_size == 0);
 
-    using Processor = DPXAligner_s16<group_size, numRegs, blosumDim, PositionsIterator>;
-    extern __shared__ short2 shared_blosum_dpx_s16[];
-    //__shared__ typename Processor::BLOSUM62_SMEM shared_blosum;
+    using Processor = DPXAligner_s16<group_size, numRegs, subMatrixDim, PositionsIterator>;
+    extern __shared__ short2 shared_matrix_dpx_s16[];
+    //__shared__ typename Processor::BLOSUM62_SMEM shared_matrix;
 
     Processor processor(
-        shared_blosum_dpx_s16,
+        shared_matrix_dpx_s16,
         devChars,
         devTempHcol2,
         devTempEcol2,
@@ -1121,7 +1121,7 @@ void NW_local_affine_multi_pass_dpx_s16(
 
 template <int blocksize, int group_size, int numRegs, class ScoreOutputIterator, class PositionsIterator> 
 void call_NW_local_affine_multi_pass_dpx_s16(
-    BlosumType /*blosumType*/,
+    SubMatrixType /*SubMatrixType*/,
     const char * const devChars,
     ScoreOutputIterator const devAlignmentScores,
     short2 * const devTempHcol2,
@@ -1143,9 +1143,9 @@ void call_NW_local_affine_multi_pass_dpx_s16(
     constexpr int alignmentsPerGroup = 2;
     constexpr int alignmentsPerBlock = groupsPerBlock * alignmentsPerGroup;
 
-    int smem = sizeof(short2) * hostBlosumDim * hostBlosumDim * hostBlosumDim;
+    int smem = sizeof(short2) * hostSubMatrixDim * hostSubMatrixDim * hostSubMatrixDim;
 
-    if(hostBlosumDim == 21){
+    if(hostSubMatrixDim == 21){
         auto kernel = NW_local_affine_multi_pass_dpx_s16<blocksize, group_size, numRegs, 21, ScoreOutputIterator, PositionsIterator>;
         cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, smem);
 
@@ -1170,7 +1170,7 @@ void call_NW_local_affine_multi_pass_dpx_s16(
             gap_extend
         ); CUERR;
     #ifdef CAN_USE_FULL_BLOSUM
-    }else if(hostBlosumDim == 25){
+    }else if(hostSubMatrixDim == 25){
         auto kernel = NW_local_affine_multi_pass_dpx_s16<blocksize, group_size, numRegs, 25, ScoreOutputIterator, PositionsIterator>;
         cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, smem);
 
@@ -1205,7 +1205,7 @@ void call_NW_local_affine_multi_pass_dpx_s16(
 // numRegs values per thread
 // uses a single warp per CUDA thread block;
 // every groupsize threads computes an alignmen score
-template <int blocksize, int group_size, int numRegs, int blosumDim, class ScoreOutputIterator, class PositionsIterator> 
+template <int blocksize, int group_size, int numRegs, int subMatrixDim, class ScoreOutputIterator, class PositionsIterator> 
 #if __CUDA_ARCH__ >= 800
 __launch_bounds__(blocksize,2)
 //__launch_bounds__(512,1)
@@ -1234,12 +1234,12 @@ void NW_local_affine_single_pass_dpx_s16(
     __builtin_assume(blockDim.x % group_size == 0);
 
 
-    using Processor = DPXAligner_s16<group_size, numRegs, blosumDim, PositionsIterator>;
-    extern __shared__ short2 shared_blosum_dpx_s16[];
-    //__shared__ typename Processor::BLOSUM62_SMEM shared_blosum;
+    using Processor = DPXAligner_s16<group_size, numRegs, subMatrixDim, PositionsIterator>;
+    extern __shared__ short2 shared_matrix_dpx_s16[];
+    //__shared__ typename Processor::BLOSUM62_SMEM shared_matrix;
 
     Processor processor(
-        shared_blosum_dpx_s16,
+        shared_matrix_dpx_s16,
         devChars,
         nullptr,
         nullptr,
@@ -1262,7 +1262,7 @@ void NW_local_affine_single_pass_dpx_s16(
 
 template <int blocksize, int group_size, int numRegs, class ScoreOutputIterator, class PositionsIterator> 
 void call_NW_local_affine_single_pass_dpx_s16(
-    BlosumType /*blosumType*/,
+    SubMatrixType /*SubMatrixType*/,
     const char * const devChars,
     ScoreOutputIterator const devAlignmentScores,
     const size_t* const devOffsets,
@@ -1283,9 +1283,9 @@ void call_NW_local_affine_single_pass_dpx_s16(
     constexpr int alignmentsPerGroup = 2;
     constexpr int alignmentsPerBlock = groupsPerBlock * alignmentsPerGroup;
 
-    int smem = sizeof(short2) * hostBlosumDim * hostBlosumDim * hostBlosumDim;
+    int smem = sizeof(short2) * hostSubMatrixDim * hostSubMatrixDim * hostSubMatrixDim;
 
-    if(hostBlosumDim == 21){
+    if(hostSubMatrixDim == 21){
         auto kernel = NW_local_affine_single_pass_dpx_s16<blocksize, group_size, numRegs, 21, ScoreOutputIterator, PositionsIterator>;
         cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, smem);
 

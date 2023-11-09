@@ -156,7 +156,7 @@ int main(int argc, char* argv[])
     cudasw4::CudaSW4 cudaSW4(
         deviceIds, 
         options.numTopOutputs,
-        options.blosumType, 
+        options.subMatrixType, 
         kernelTypeConfig, 
         memoryConfig, 
         options.verbose

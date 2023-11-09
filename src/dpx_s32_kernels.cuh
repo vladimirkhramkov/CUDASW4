@@ -1,12 +1,12 @@
 #ifndef DPX_S32_KERNELS_CUH
 #define DPX_S32_KERNELS_CUH
 
-#include "blosum.hpp"
+#include "sub_matrix.hpp"
 #include "config.hpp"
 
 namespace cudasw4{
 
-template <int numRegs, int blosumDim, class PositionsIterator> 
+template <int numRegs, int subMatrixDim, class PositionsIterator> 
 struct DPXAligner_s32{
     static_assert(2 <= numRegs && numRegs % 2 == 0, "DPXAligner_s32 does not support odd number of numRegs");
 
@@ -14,10 +14,10 @@ struct DPXAligner_s32{
 
     static constexpr int negInfty = -10000;
 
-    static constexpr int deviceBlosumDimCexpr = blosumDim;
-    static constexpr int deviceBlosumDimCexprSquared = deviceBlosumDimCexpr * deviceBlosumDimCexpr;
+    static constexpr int deviceSubMatrixDimCexpr = subMatrixDim;
+    static constexpr int deviceSubMatrixDimCexprSquared = deviceSubMatrixDimCexpr * deviceSubMatrixDimCexpr;
 
-    int* shared_blosum;
+    int* shared_matrix;
 
     int numSelected;
     int gap_open;
@@ -31,7 +31,7 @@ struct DPXAligner_s32{
 
     __device__
     DPXAligner_s32(
-        int* shared_blosum_,
+        int* shared_matrix_,
         const char* devChars_,
         int2* devTempHcol2_,
         int2* devTempEcol2_,
@@ -40,7 +40,7 @@ struct DPXAligner_s32{
         PositionsIterator d_positions_of_selected_lengths_,
         int gap_open_,
         int gap_extend_
-    ) : shared_blosum(shared_blosum_),
+    ) : shared_matrix(shared_matrix_),
         devChars(devChars_),
         devTempHcol2(devTempHcol2_),
         devTempEcol2(devTempEcol2_),
@@ -50,8 +50,8 @@ struct DPXAligner_s32{
         gap_open(gap_open_),
         gap_extend(gap_extend_)
     {
-        for (int i=threadIdx.x; i<deviceBlosumDimSquared; i+=32){
-            shared_blosum[(i/deviceBlosumDim) * deviceBlosumDim + (i%deviceBlosumDim)]=deviceBlosum[i];
+        for (int i=threadIdx.x; i<deviceSubMatrixDimSquared; i+=32){
+            shared_matrix[(i/deviceSubMatrixDim) * deviceSubMatrixDim + (i%deviceSubMatrixDim)]=deviceSubMatrix[i];
         }
         __syncwarp();
 
@@ -77,7 +77,7 @@ struct DPXAligner_s32{
         int (&penalty_here_array)[numRegs],
         int (&F_here_array)[numRegs]
     ) const{
-        const int* const sbt_row = &shared_blosum[int(query_letter) * deviceBlosumDim];
+        const int* const sbt_row = &shared_matrix[int(query_letter) * deviceSubMatrixDim];
 
         const int score2_0 = sbt_row[subject[0]];
         int penalty_temp0 = penalty_here_array[0];
@@ -123,7 +123,7 @@ struct DPXAligner_s32{
         int (&penalty_here_array)[numRegs],
         int (&F_here_array)[numRegs]
     ) const{
-        const int* const sbt_row = &shared_blosum[int(query_letter) * deviceBlosumDim];
+        const int* const sbt_row = &shared_matrix[int(query_letter) * deviceSubMatrixDim];
 
         const int score2_0 = sbt_row[subject[0]];
         int penalty_temp0 = penalty_here_array[0];
@@ -193,14 +193,14 @@ struct DPXAligner_s32{
         const char* const devS0, const SequenceLengthT length_S0
     ) const{
         // if (!offset_isc) {
-        //     for (int i=threadIdx.x; i<deviceBlosumDimSquared; i+=32) shared_blosum[(i/deviceBlosumDim) * deviceBlosumDim + (i%deviceBlosumDim)]=deviceBlosum[i];
+        //     for (int i=threadIdx.x; i<deviceSubMatrixDimSquared; i+=32) shared_matrix[(i/deviceSubMatrixDim) * deviceSubMatrixDim + (i%deviceSubMatrixDim)]=deviceSubMatrix[i];
         //     __syncwarp();
         // }
 
         #pragma unroll //UNROLLHERE
         for (int i=0; i<numRegs; i++) {
 
-            if (offset_isc+numRegs*(threadIdx.x%group_size)+i >= length_S0) subject[i] = (deviceBlosumDimCexpr-1); // 20;
+            if (offset_isc+numRegs*(threadIdx.x%group_size)+i >= length_S0) subject[i] = (deviceSubMatrixDimCexpr-1); // 20;
             else{                
                 subject[i] = devS0[offset_isc+numRegs*(threadIdx.x%group_size)+i];
             }
@@ -974,7 +974,7 @@ struct DPXAligner_s32{
 // uses a single warp per CUDA thread block;
 // every groupsize threads computes an alignmen score
 // devTempHcol2 and devTempEcol2 each must have length numBlocks * (blocksize / group_size) * SDIV((SDIV(queryLength, 4) * 4 + 32 * sizeof(char4)), 2);
-template <int numRegs, int blosumDim, class ScoreOutputIterator, class PositionsIterator> 
+template <int numRegs, int subMatrixDim, class ScoreOutputIterator, class PositionsIterator> 
 __launch_bounds__(32,16)
 //__launch_bounds__(32)
 __global__
@@ -993,15 +993,15 @@ void NW_local_affine_multi_pass_dpx_s32(
 ) {
     __builtin_assume(blockDim.x == 32);
 
-    using Processor = DPXAligner_s32<numRegs, blosumDim, PositionsIterator>;
+    using Processor = DPXAligner_s32<numRegs, subMatrixDim, PositionsIterator>;
 
-    //__shared__ typename Processor::BLOSUM62_SMEM shared_blosum;
+    //__shared__ typename Processor::BLOSUM62_SMEM shared_matrix;
 
-    //25 is max blosum dimension
-    __shared__ int shared_blosum[25 * 25];
+    //25 is max substitution matrix dimension
+    __shared__ int shared_matrix[25 * 25];
 
     Processor processor(
-        shared_blosum,
+        shared_matrix,
         devChars,
         devTempHcol2,
         devTempEcol2,
@@ -1017,7 +1017,7 @@ void NW_local_affine_multi_pass_dpx_s32(
 
 template <int numRegs, class ScoreOutputIterator, class PositionsIterator> 
 void call_NW_local_affine_multi_pass_dpx_s32(
-    BlosumType /*blosumType*/,
+    SubMatrixType /*SubMatrixType*/,
     const char * const devChars,
     ScoreOutputIterator const devAlignmentScores,
     int2 * const devTempHcol2,
@@ -1033,7 +1033,7 @@ void call_NW_local_affine_multi_pass_dpx_s32(
     cudaStream_t stream
 ) {
 
-    if(hostBlosumDim == 21){
+    if(hostSubMatrixDim == 21){
         auto kernel = NW_local_affine_multi_pass_dpx_s32<numRegs, 21, ScoreOutputIterator, PositionsIterator>;
         cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0);
 
@@ -1054,7 +1054,7 @@ void call_NW_local_affine_multi_pass_dpx_s32(
             gap_extend
         ); CUERR;
     #ifdef CAN_USE_FULL_BLOSUM
-    }else if(hostBlosumDim == 25){
+    }else if(hostSubMatrixDim == 25){
         auto kernel = NW_local_affine_multi_pass_dpx_s32<numRegs, 25, ScoreOutputIterator, PositionsIterator>;
         cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0);
 
@@ -1081,7 +1081,7 @@ void call_NW_local_affine_multi_pass_dpx_s32(
 }
 
 
-template <int numRegs, int blosumDim, class ScoreOutputIterator, class PositionsIterator> 
+template <int numRegs, int subMatrixDim, class ScoreOutputIterator, class PositionsIterator> 
 __launch_bounds__(32,16)
 //__launch_bounds__(32)
 __global__
@@ -1098,15 +1098,15 @@ void NW_local_affine_single_pass_dpx_s32(
 ) {
     __builtin_assume(blockDim.x == 32);
     
-    using Processor = DPXAligner_s32<numRegs, blosumDim, PositionsIterator>;
+    using Processor = DPXAligner_s32<numRegs, subMatrixDim, PositionsIterator>;
 
-    //__shared__ typename Processor::BLOSUM62_SMEM shared_blosum;
+    //__shared__ typename Processor::BLOSUM62_SMEM shared_matrix;
 
-    //25 is max blosum dimension
-    __shared__ int shared_blosum[25 * 25];
+    //25 is max substitution matrix dimension
+    __shared__ int shared_matrix[25 * 25];
 
     Processor processor(
-        shared_blosum,
+        shared_matrix,
         devChars,
         nullptr,
         nullptr,
@@ -1122,7 +1122,7 @@ void NW_local_affine_single_pass_dpx_s32(
 
 template <int numRegs, class ScoreOutputIterator, class PositionsIterator> 
 void call_NW_local_affine_single_pass_dpx_s32(
-    BlosumType /*blosumType*/,
+    SubMatrixType /*SubMatrixType*/,
     const char * const devChars,
     ScoreOutputIterator const devAlignmentScores,
     const size_t* const devOffsets,
@@ -1136,7 +1136,7 @@ void call_NW_local_affine_single_pass_dpx_s32(
     cudaStream_t stream
 ) {
 
-    if(hostBlosumDim == 21){
+    if(hostSubMatrixDim == 21){
         auto kernel = NW_local_affine_single_pass_dpx_s32<numRegs, 21, ScoreOutputIterator, PositionsIterator>;
         cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0);
 
@@ -1155,7 +1155,7 @@ void call_NW_local_affine_single_pass_dpx_s32(
             gap_extend
         ); CUERR;
     #ifdef CAN_USE_FULL_BLOSUM
-    }else if(hostBlosumDim == 25){
+    }else if(hostSubMatrixDim == 25){
         auto kernel = NW_local_affine_single_pass_dpx_s32<numRegs, 25, ScoreOutputIterator, PositionsIterator>;
         cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0);
 
@@ -1181,7 +1181,7 @@ void call_NW_local_affine_single_pass_dpx_s32(
 
 
 //d_temp must have length numBlocks * (SDIV(queryLength, 4) * 4 + 32 * sizeof(char4));
-template <int numRegs, int blosumDim, class ScoreOutputIterator, class PositionsIterator>
+template <int numRegs, int subMatrixDim, class ScoreOutputIterator, class PositionsIterator>
 __launch_bounds__(1,1)
 __global__
 void launch_process_overflow_alignments_kernel_NW_local_affine_multi_pass_dpx_s32(
@@ -1218,7 +1218,7 @@ void launch_process_overflow_alignments_kernel_NW_local_affine_multi_pass_dpx_s3
             // cudaMemsetAsync(d_tempHcol2, 0, tempBytesPerSubjectPerBuffer * num, 0);
             // cudaMemsetAsync(d_tempEcol2, 0, tempBytesPerSubjectPerBuffer * num, 0);
 
-            NW_local_affine_multi_pass_dpx_s32<numRegs, blosumDim><<<num, 32>>>(
+            NW_local_affine_multi_pass_dpx_s32<numRegs, subMatrixDim><<<num, 32>>>(
                 devChars, 
                 devAlignmentScores,
                 d_tempHcol2, 
@@ -1252,7 +1252,7 @@ void call_launch_process_overflow_alignments_kernel_NW_local_affine_multi_pass_d
     const int gap_extend,
     cudaStream_t stream
 ){
-    if(hostBlosumDim == 21){
+    if(hostSubMatrixDim == 21){
         auto kernel = launch_process_overflow_alignments_kernel_NW_local_affine_multi_pass_dpx_s32<numRegs, 21, ScoreOutputIterator, PositionsIterator>;
         cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0);
 
@@ -1271,7 +1271,7 @@ void call_launch_process_overflow_alignments_kernel_NW_local_affine_multi_pass_d
             gap_extend
         ); CUERR;
     #ifdef CAN_USE_FULL_BLOSUM
-    }else if(hostBlosumDim == 25){
+    }else if(hostSubMatrixDim == 25){
         auto kernel = launch_process_overflow_alignments_kernel_NW_local_affine_multi_pass_dpx_s32<numRegs, 25, ScoreOutputIterator, PositionsIterator>;
         cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, 0);
 
