@@ -2,3 +2,4 @@ align
 makedb
 modifydb
 build/
+.vscode/

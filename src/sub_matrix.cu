@@ -20,6 +20,46 @@ namespace cudasw4{
     
     void setProgramWideSubMatrix(SubMatrixType subMatrixType, const std::vector<int>& deviceIds){
         switch(subMatrixType){
+            case SubMatrixType::DNA:
+                {
+                    const auto subMatrix = DNA::get1D();
+                    const int dim = DNA::dim;
+                    hostSubMatrixDim = dim;
+                    hostSubMatrixDimSquared = dim * dim;
+                    auto it = std::copy(subMatrix.begin(), subMatrix.end(), hostSubMatrix);
+                    assert(std::distance(hostSubMatrix, it) <= 25 * 25);                
+                }
+                break;               
+            case SubMatrixType::NUC44:
+                {
+                    const auto subMatrix = NUC44::get1D();
+                    const int dim = NUC44::dim;
+                    hostSubMatrixDim = dim;
+                    hostSubMatrixDimSquared = dim * dim;
+                    auto it = std::copy(subMatrix.begin(), subMatrix.end(), hostSubMatrix);
+                    assert(std::distance(hostSubMatrix, it) <= 25 * 25);                
+                }
+                break;            
+            case SubMatrixType::PAM30:
+                {
+                    const auto subMatrix = PAM30::get1D();
+                    const int dim = PAM30::dim;
+                    hostSubMatrixDim = dim;
+                    hostSubMatrixDimSquared = dim * dim;
+                    auto it = std::copy(subMatrix.begin(), subMatrix.end(), hostSubMatrix);
+                    assert(std::distance(hostSubMatrix, it) <= 25 * 25);                
+                }
+                break;            
+            case SubMatrixType::PAM70:
+                {
+                    const auto subMatrix = PAM70::get1D();
+                    const int dim = PAM70::dim;
+                    hostSubMatrixDim = dim;
+                    hostSubMatrixDimSquared = dim * dim;
+                    auto it = std::copy(subMatrix.begin(), subMatrix.end(), hostSubMatrix);
+                    assert(std::distance(hostSubMatrix, it) <= 25 * 25);                
+                }
+                break;            
             case SubMatrixType::BLOSUM45:
                 {
                     const auto subMatrix = BLOSUM45::get1D();
@@ -60,6 +100,26 @@ namespace cudasw4{
                     assert(std::distance(hostSubMatrix, it) <= 25 * 25);                
                 }
                 break;
+            case SubMatrixType::PAM30_20:
+                {
+                    const auto subMatrix = PAM30_20::get1D();
+                    const int dim = PAM30_20::dim;
+                    hostSubMatrixDim = dim;
+                    hostSubMatrixDimSquared = dim * dim;
+                    auto it = std::copy(subMatrix.begin(), subMatrix.end(), hostSubMatrix);
+                    assert(std::distance(hostSubMatrix, it) <= 25 * 25);                
+                }
+                break;                
+            case SubMatrixType::PAM70_20:
+                {
+                    const auto subMatrix = PAM70_20::get1D();
+                    const int dim = PAM70_20::dim;
+                    hostSubMatrixDim = dim;
+                    hostSubMatrixDimSquared = dim * dim;
+                    auto it = std::copy(subMatrix.begin(), subMatrix.end(), hostSubMatrix);
+                    assert(std::distance(hostSubMatrix, it) <= 25 * 25);                
+                }
+                break;                
             case SubMatrixType::BLOSUM45_20:
                 {
                     const auto subMatrix = BLOSUM45_20::get1D();
