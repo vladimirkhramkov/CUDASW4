@@ -132,25 +132,31 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
             gotDB = true;
         }else if(arg == "--mat"){
             const std::string val = argv[++i];
+
             #ifdef CAN_USE_FULL_BLOSUM
+            if(val == "pam30") options.subMatrixType = cudasw4::SubMatrixType::PAM30;
+            if(val == "pam70") options.subMatrixType = cudasw4::SubMatrixType::PAM70;
             if(val == "blosum45") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM45;
             if(val == "blosum50") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM50;
             if(val == "blosum62") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM62;
             if(val == "blosum80") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM80;
-            if(val == "blosum45_20") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM45_20;
-            if(val == "blosum50_20") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM50_20;
-            if(val == "blosum62_20") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM62_20;
-            if(val == "blosum80_20") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM80_20;
             #else
+            if(val == "pam30") options.subMatrixType = cudasw4::SubMatrixType::PAM30_20;
+            if(val == "pam70") options.subMatrixType = cudasw4::SubMatrixType::PAM70_20;
             if(val == "blosum45") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM45_20;
             if(val == "blosum50") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM50_20;
             if(val == "blosum62") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM62_20;
             if(val == "blosum80") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM80_20;
+            #endif
+
+            if(val == "dna") options.subMatrixType = cudasw4::SubMatrixType::DNA;
+            if(val == "nuc44") options.subMatrixType = cudasw4::SubMatrixType::NUC44;
+            if(val == "pam30_20") options.subMatrixType = cudasw4::SubMatrixType::PAM30_20;
+            if(val == "pam70_20") options.subMatrixType = cudasw4::SubMatrixType::PAM70_20;
             if(val == "blosum45_20") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM45_20;
             if(val == "blosum50_20") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM50_20;
             if(val == "blosum62_20") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM62_20;
             if(val == "blosum80_20") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM80_20;
-            #endif
         }else if(arg == "--singlePassType"){
             options.singlePassType = stringToKernelType(argv[++i]);
         }else if(arg == "--manyPassType_small"){
@@ -229,10 +235,11 @@ void printHelp(int /*argc*/, char** argv){
     std::cout << "      --gop val : Gap open score. Overwrites our matrix-dependent default score.\n";
     std::cout << "      --gex val : Gap extend score. Overwrites our matrix-dependent default score.\n";
     #ifdef CAN_USE_FULL_BLOSUM
-    std::cout << "      --mat val: Set substitution matrix. Supported values: blosum45, blosum50, blosum62, blosum80, blosum45_20, blosum50_20, blosum62_20, blosum80_20. "
-                        "Default: " << "blosum62_20" << "\n";
+    std::cout << "      --mat val: Set substitution matrix. Supported values: dna, nuc44, pam30, pam70, pam30_20, pam70_20,\n";
+    std::cout << "                 blosum45, blosum50, blosum62, blosum80, blosum45_20, blosum50_20, blosum62_20, blosum80_20.\n";
+    std::cout << "                 Default: " << "blosum62_20" << "\n";
     #else 
-    std::cout << "      --mat val: Set substitution matrix. Supported values: blosum45, blosum50, blosum62, blosum80. "
+    std::cout << "      --mat val: Set substitution matrix. Supported values: dna, nuc44, pam30, pam70, blosum45, blosum50, blosum62, blosum80. "
                         "Default: " << "blosum62" << "\n";
     #endif
     std::cout << "\n";
