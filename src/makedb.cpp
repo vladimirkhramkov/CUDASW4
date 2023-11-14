@@ -323,7 +323,7 @@ int main(int argc, char* argv[])
     const std::string fastafilename = argv[1];
     const std::string outputPrefix = argv[2];
     std::string temppath = outputPrefix;
-    cudasw4::SequenceType sequenceType = cudasw4::sSequenceType::Protein;
+    cudasw4::SequenceType sequenceType = cudasw4::SequenceType::Protein;
     size_t availableMem = getAvailableMemoryInKB() * 1024;
     constexpr size_t GB = 1024*1024*1024;
     if(availableMem > 1*GB){
@@ -342,7 +342,6 @@ int main(int argc, char* argv[])
                 std::cerr << "No sequence type specified after --type." << std::endl;
                 return 1;
             }
-            argv[++i]
         }else if(arg == "--mem"){
             availableMem = parseMemoryString(argv[++i]);
         }else if(arg == "--tempdir"){
