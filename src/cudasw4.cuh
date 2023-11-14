@@ -96,6 +96,7 @@ namespace cudasw4{
         size_t maxGpuMem = std::numeric_limits<size_t>::max();
     };
 
+    // used here
     struct HostGpuPartitionOffsets{
         int numGpus;
         int numLengthPartitions;
@@ -179,6 +180,7 @@ namespace cudasw4{
         }
     };
 
+    // used here
     struct DeviceGpuPartitionOffsets{
         template<class T>
         using MyDeviceBuffer = helpers::SimpleAllocationDevice<T, 0>;
@@ -190,6 +192,7 @@ namespace cudasw4{
         MyDeviceBuffer<size_t> verticalPS;
         MyDeviceBuffer<size_t> totalPerLengthPartitionPS;
 
+        // used here
         struct View{
             int numGpus;
             int numLengthPartitions;
@@ -210,6 +213,7 @@ namespace cudasw4{
             };
         };
 
+        // used here
         DeviceGpuPartitionOffsets() = default;
         DeviceGpuPartitionOffsets(const HostGpuPartitionOffsets& hostData)
             : numGpus(hostData.numGpus),
@@ -225,6 +229,7 @@ namespace cudasw4{
             cudaMemcpyAsync(totalPerLengthPartitionPS.data(), hostData.totalPerLengthPartitionPS.data(), sizeof(size_t) * numLengthPartitions, H2D, cudaStreamLegacy); CUERR;
         }
 
+        // used here
         View getDeviceView() const{
             View view;
             view.numGpus = numGpus;
@@ -247,6 +252,7 @@ namespace cudasw4{
 
         static constexpr int maxReduceArraySize = 512 * 1024;
 
+        // used here
         struct GpuWorkingSet{
 
             //using MaxReduceArray = TopNMaximaArray<maxReduceArraySize>;
@@ -460,6 +466,7 @@ namespace cudasw4{
         
         };
 
+        // used here
         struct SequenceLengthStatistics{
             SequenceLengthT max_length = 0;
             SequenceLengthT min_length = std::numeric_limits<SequenceLengthT>::max();
@@ -470,6 +477,7 @@ namespace cudasw4{
         CudaSW4(
             std::vector<int> deviceIds_, 
             int numTop,
+            SequenceType sequenceType,
             SubMatrixType subMatrixType,
             const KernelTypeConfig& kernelTypeConfig,
             const MemoryConfig& memoryConfig,
@@ -493,6 +501,7 @@ namespace cudasw4{
             scanTimer = std::make_unique<helpers::GpuTimer>("Scan");
             totalTimer = std::make_unique<helpers::GpuTimer>("Total");
 
+            setSequenceType(sequenceType);
             setSubMatrix(subMatrixType);
             setNumTop(numTop);
             setKernelTypeConfig(kernelTypeConfig);
@@ -507,12 +516,14 @@ namespace cudasw4{
         CudaSW4& operator=(const CudaSW4&) = delete;
         CudaSW4& operator=(CudaSW4&&) = default;
 
+        // unused!!!
         void setGapOpenScore(int score){
             if(score >= 0){
                 std::cout << "Warning, gap open score set to non-negative value. Is this intended?\n";
             }
             gop = score;
         }
+        // unused!!!
         void setGapExtendScore(int score){
             if(score >= 0){
                 std::cout << "Warning, gap extend score set to non-negative value. Is this intended?\n";
@@ -520,28 +531,31 @@ namespace cudasw4{
             gex = score;
         }
 
+        // used in main.cu
         void setDatabase(std::shared_ptr<DB> dbPtr){
             RevertDeviceId rdi{};
             fullDB = AnyDBWrapper(dbPtr);
             makeReady();
         }
-
+        // used in main.cu
         void setDatabase(std::shared_ptr<DBWithVectors> dbPtr){
             RevertDeviceId rdi{};
             fullDB = AnyDBWrapper(dbPtr);
             makeReady();
         }
-
+        // used in main.cu
         void setDatabase(std::shared_ptr<PseudoDB> dbPtr){
             RevertDeviceId rdi{};
             fullDB = AnyDBWrapper(dbPtr);
             makeReady();
         }
 
+        // used here
         void setSubMatrix(SubMatrixType subMatrixType){
             setProgramWideSubMatrix(subMatrixType, deviceIds);
         }
 
+        // used here
         void setNumTop(int value){
             if(value >= 0){
                 numTop = value;
@@ -557,6 +571,7 @@ namespace cudasw4{
             }
         }
 
+        // used here
         void setKernelTypeConfig(const KernelTypeConfig& val){
             if(!isValidSinglePassType(val.singlePassType)){
                 throw std::runtime_error("Invalid singlepass kernel type");
@@ -577,10 +592,16 @@ namespace cudasw4{
             kernelTypeConfig = val;
         }
 
+        // used here
         void setMemoryConfig(const MemoryConfig& val){
             memoryConfig = val;
         }
 
+        void setSequenceType(const SequenceType& val){
+            sequenceType = val;
+        }
+
+        // used in main.cu
         std::string_view getReferenceHeader(ReferenceIdT referenceId) const{
             const auto& data = fullDB.getData();
             const char* const headerBegin = data.headers() + data.headerOffsets()[referenceId];
@@ -588,27 +609,39 @@ namespace cudasw4{
             return std::string_view(headerBegin, std::distance(headerBegin, headerEnd));
         }
 
+        // used in main.cu
         int getReferenceLength(ReferenceIdT referenceId) const{
             const auto& data = fullDB.getData();
             return data.lengths()[referenceId];
         }
 
+        // used in main.cu
         std::string getReferenceSequence(ReferenceIdT referenceId) const{
             const auto& data = fullDB.getData();
             const char* const begin = data.chars() + data.offsets()[referenceId];
             const char* const end = begin + getReferenceLength(referenceId);
 
             std::string sequence(end - begin, '\0');
-            std::transform(
-                begin, 
-                end,
-                sequence.begin(),
-                InverseConvertAA_20{}
-            );
+            if (options.sequenceType == SequenceType::Protein) {
+                std::transform(
+                    begin, 
+                    end,
+                    sequence.begin(),
+                    InverseConvertAA_20{}
+                );
+            } else {
+                std::transform(
+                    begin, 
+                    end,
+                    sequence.begin(),
+                    InverseConvertNA{}
+                );
+            }
 
             return sequence;
         }
 
+        // used in main.cu
         void prefetchFullDBToGpus(){
             RevertDeviceId rdi{};
 
@@ -656,6 +689,7 @@ namespace cudasw4{
             }
         }
 
+        // used in main.cu
         ScanResult scan(const char* query, SequenceLengthT queryLength){
             if(!dbIsReady){
                 throw std::runtime_error("DB not set correctly");
@@ -691,6 +725,7 @@ namespace cudasw4{
             return result;
         }
 
+        // unused!!!
         std::vector<int> computeAllScoresCPU(const char* query, SequenceLengthT queryLength){
             const auto& view = fullDB.getData();
             size_t numSequences = view.numSequences();
@@ -722,7 +757,7 @@ namespace cudasw4{
             return result;
         }
 
-
+        // used in main.cu
         void printDBInfo() const{
             const size_t numSequences = fullDB.getData().numSequences();
             std::cout << numSequences << " sequences, " << fullDB.getData().numChars() << " characters\n";
@@ -733,6 +768,7 @@ namespace cudasw4{
                 << ", avg length " << stats.sumOfLengths / numSequences << "\n";
         }
 
+        // used in main.cu
         void printDBLengthPartitions() const{
             auto lengthBoundaries = getLengthPartitionBoundaries();
             const int numLengthPartitions = getLengthPartitionBoundaries().size();
@@ -742,6 +778,7 @@ namespace cudasw4{
             }
         }
 
+        // used in main.cu
         void totalTimerStart(){
             RevertDeviceId rdi{};
             cudaSetDevice(deviceIds[0]);
@@ -750,6 +787,7 @@ namespace cudasw4{
             totalTimer->start();
         }
 
+        // used in main.cu
         BenchmarkStats totalTimerStop(){
             RevertDeviceId rdi{};
             cudaSetDevice(deviceIds[0]);
@@ -765,23 +803,28 @@ namespace cudasw4{
             return stats;
         }
 
+        // used here
         bool isValidSinglePassType(KernelType type) const{
             return (type == KernelType::Half2 || type == KernelType::DPXs16 || type == KernelType::DPXs32 || type == KernelType::Float);
         }
 
+        // used here
         bool isValidMultiPassType_small(KernelType type) const{
             return (type == KernelType::Half2 || type == KernelType::DPXs16);
         }
 
+        // used here
         bool isValidMultiPassType_large(KernelType type) const{
             return (type == KernelType::Float || type == KernelType::DPXs32);
         }
 
+        // used here
         bool isValidOverflowType(KernelType type) const{
             return (type == KernelType::Float || type == KernelType::DPXs32);
         }
 
     private:
+        // used here
         void initializeGpus(){
             const int numGpus = deviceIds.size();
 
@@ -801,6 +844,7 @@ namespace cudasw4{
             }
         }
 
+        // used here
         void makeReady(){
             dbSequenceLengthStatistics = nullptr;
 
@@ -815,6 +859,7 @@ namespace cudasw4{
             updateNumResultsPerQuery();
         }
 
+        // used here
         void computeTotalNumSequencePerLengthPartition(){
             auto lengthBoundaries = getLengthPartitionBoundaries();
             const int numLengthPartitions = getLengthPartitionBoundaries().size();
@@ -839,6 +884,7 @@ namespace cudasw4{
             }
         }
 
+        // used here
         void partitionDBAmongstGpus(){
             const int numGpus = deviceIds.size();
             const int numLengthPartitions = getLengthPartitionBoundaries().size();
@@ -917,6 +963,7 @@ namespace cudasw4{
             hostGpuPartitionOffsets = HostGpuPartitionOffsets(numGpus, numLengthPartitions, std::move(sequencesInPartitions));
         }
 
+        // used here
         void allocateGpuWorkingSets(){
             const int numGpus = deviceIds.size();
 
@@ -979,6 +1026,7 @@ namespace cudasw4{
             }
         }
 
+        // used here
         void createDBBatchesForGpus(){
 
             const int numGpus = deviceIds.size();
@@ -1017,12 +1065,14 @@ namespace cudasw4{
             }
         }
 
+        // used here
         void printDBDataView(const DBdataView& view) const{
             std::cout << "Sequences: " << view.numSequences() << "\n";
             std::cout << "Chars: " << view.offsets()[0] << " - " << view.offsets()[view.numSequences()] << " (" << (view.offsets()[view.numSequences()] - view.offsets()[0]) << ")"
                 << " " << view.numChars() << "\n";
         }
 
+        // unused!!!
         void printDBDataViews(const std::vector<DBdataView>& views) const {
             size_t numViews = views.size();
             for(size_t p = 0; p < numViews; p++){
@@ -1033,6 +1083,7 @@ namespace cudasw4{
             }
         }
 
+        // used here
         SequenceLengthStatistics getSequenceLengthStatistics() const{
             if(dbSequenceLengthStatistics == nullptr){
                 dbSequenceLengthStatistics = std::make_unique<SequenceLengthStatistics>();
@@ -1048,6 +1099,7 @@ namespace cudasw4{
             return *dbSequenceLengthStatistics;
         }
 
+        // used here
         std::vector<DeviceBatchCopyToPinnedPlan> computeDbCopyPlan(
             const std::vector<DBdataView>& dbPartitions,
             const std::vector<int>& lengthPartitionIds,
@@ -1150,7 +1202,7 @@ namespace cudasw4{
             return result;
         }
 
-
+        // used here
         void setQuery(const char* query, SequenceLengthT queryLength){
             if(queryLength > MaxSequenceLength::value()){
                 std::string msg = "Query length is " + std::to_string(queryLength) 
@@ -1172,17 +1224,28 @@ namespace cudasw4{
                 cudaMemsetAsync(ws.d_query.data() + currentQueryLength, 20, currentQueryLengthWithPadding - currentQueryLength, gpuStreams[gpu]);
                 cudaMemcpyAsync(ws.d_query.data(), query, currentQueryLength, cudaMemcpyDefault, gpuStreams[gpu]); CUERR
 
-                thrust::transform(
-                    thrust::cuda::par_nosync.on(gpuStreams[gpu]),
-                    ws.d_query.data(),
-                    ws.d_query.data() + currentQueryLength,
-                    ws.d_query.data(),
-                    ConvertAA_20{}
-                );
+                if (options.sequenceType == SequenceType::Protein) {
+                    thrust::transform(
+                        thrust::cuda::par_nosync.on(gpuStreams[gpu]),
+                        ws.d_query.data(),
+                        ws.d_query.data() + currentQueryLength,
+                        ws.d_query.data(),
+                        ConvertAA_20{}
+                    );
+                } else {
+                    thrust::transform(
+                        thrust::cuda::par_nosync.on(gpuStreams[gpu]),
+                        ws.d_query.data(),
+                        ws.d_query.data() + currentQueryLength,
+                        ws.d_query.data(),
+                        ConvertNA{}
+                    );
+                }
                 //NW_convert_protein_single<<<SDIV(queryLength, 128), 128, 0, gpuStreams[gpu]>>>(ws.d_query.data(), queryLength); CUERR
             }
         }
 
+        // used here
         void scanDatabaseForQuery(){
             const int numGpus = deviceIds.size();
             const int masterDeviceId = deviceIds[0];
@@ -1306,6 +1369,7 @@ namespace cudasw4{
             cudaStreamSynchronize(masterStream1); CUERR;
         }
 
+        // used here
         void processQueryOnGpus(){
 
             const std::vector<std::vector<DBdataView>>& dbPartitionsPerGpu = subPartitionsForGpus;
@@ -2119,6 +2183,7 @@ namespace cudasw4{
         
         }
 
+        // used here
         BenchmarkStats makeBenchmarkStats(double seconds, double cells, int overflows) const{
             BenchmarkStats stats;
             stats.seconds = seconds;
@@ -2128,6 +2193,7 @@ namespace cudasw4{
             return stats;
         }
 
+        // used here
         void updateNumResultsPerQuery(){
 
             results_per_query = std::min(size_t(numTop), size_t(maxReduceArraySize));
@@ -2136,6 +2202,7 @@ namespace cudasw4{
             }
         }
 
+        // unused!!!
         int affine_local_DP_host_protein_blosum62(
             const char* seq1,
             const char* seq2,
@@ -2186,6 +2253,7 @@ namespace cudasw4{
             return maxi;
         }
 
+        // used in unused!!! computeAllScoresCPU
         int affine_local_DP_host_protein_blosum62_converted(
             const char* seq1,
             const char* seq2,
@@ -2297,6 +2365,7 @@ namespace cudasw4{
         int gop = -11;
         int gex = -1;
         int numTop = 10;
+        SequenceType sequenceType = SequenceType::Protein;
         SubMatrixType subMatrixType = SubMatrixType::BLOSUM62_20;
 
         KernelTypeConfig kernelTypeConfig;

@@ -670,6 +670,15 @@ struct NUC44{
 } //namespace cudasw4
 
 __inline__
+std::string to_string(cudasw4::SequenceType type){
+    switch(type){
+        case cudasw4::SequenceType::Nucleotide: return "Nucleotide"; break;
+        case cudasw4::SequenceType::Protein: return "Protein"; break;
+        default: return "Missing name for SequenceType";
+    }
+}
+
+__inline__
 std::string to_string(cudasw4::KernelType type){
     switch(type){
         case cudasw4::KernelType::Half2: return "Half2"; break;

@@ -93,8 +93,6 @@ struct BatchOfQueries{
     std::vector<std::string> headers;  
 };
 
-
-
 int main(int argc, char* argv[])
 {
     ProgramOptions options;
@@ -156,6 +154,7 @@ int main(int argc, char* argv[])
     cudasw4::CudaSW4 cudaSW4(
         deviceIds, 
         options.numTopOutputs,
+        options.sequenceType,
         options.subMatrixType, 
         kernelTypeConfig, 
         memoryConfig, 

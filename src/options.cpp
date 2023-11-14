@@ -5,8 +5,6 @@
 #include <string>
 #include <iostream>
 
-
-
 void printOptions(const ProgramOptions& options){
     std::cout << "Selected options:\n";
     std::cout << "verbose: " << options.verbose << "\n";
@@ -22,6 +20,7 @@ void printOptions(const ProgramOptions& options){
     for(size_t i = 0; i < options.queryFiles.size(); i++){
         std::cout << "queryFile " << i  << " : " << options.queryFiles[i] << "\n";
     }
+    std::cout << "sequence type: " << to_string(options.sequenceType) << "\n";
     #ifdef CAN_USE_FULL_BLOSUM
     std::cout << "matrix: " << to_string(options.subMatrixType) << "\n";
     #else
@@ -133,6 +132,8 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
         }else if(arg == "--mat"){
             const std::string val = argv[++i];
 
+            options.sequenceType  = cudasw4::SequenceType::Protein; // by default
+
             #ifdef CAN_USE_FULL_BLOSUM
             if(val == "pam30") options.subMatrixType = cudasw4::SubMatrixType::PAM30;
             if(val == "pam70") options.subMatrixType = cudasw4::SubMatrixType::PAM70;
@@ -149,8 +150,16 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
             if(val == "blosum80") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM80_20;
             #endif
 
-            if(val == "dna") options.subMatrixType = cudasw4::SubMatrixType::DNA;
-            if(val == "nuc44") options.subMatrixType = cudasw4::SubMatrixType::NUC44;
+            if(val == "dna") {
+                options.subMatrixType = cudasw4::SubMatrixType::DNA;
+                options.sequenceType  = cudasw4::SequenceType::Nucleotide;
+            }
+
+            if(val == "nuc44") {
+                options.subMatrixType = cudasw4::SubMatrixType::NUC44;
+                options.sequenceType  = cudasw4::SequenceType::Nucleotide;
+            }
+
             if(val == "pam30_20") options.subMatrixType = cudasw4::SubMatrixType::PAM30_20;
             if(val == "pam70_20") options.subMatrixType = cudasw4::SubMatrixType::PAM70_20;
             if(val == "blosum45_20") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM45_20;
