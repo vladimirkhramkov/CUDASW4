@@ -16,6 +16,7 @@
 #include "hpc_helpers/all_helpers.cuh"
 #include "sequence_io.h"
 #include "dbdata.hpp"
+#include "types.hpp"
 #include "convert.cuh"
 #include "kseqpp/kseqpp.hpp"
 #include "length_partitions.hpp"
@@ -278,12 +279,11 @@ void createDBfilesFromSequenceBatch(const std::string& outputPrefix, const Batch
 
 int main(int argc, char* argv[])
 {
-
-
     if(argc < 3) {
         std::cout << "Usage:\n  " << argv[0] << " <FASTA/FASTQ filename> pathtodb/dbname [options]\n";
         std::cout << "Input file may be gzip'ed. pathtodb must exist.\n";
         std::cout << "Options:\n";
+        std::cout << "    --type val : Sequence type: (n|p). Nucleotides (n) or proteins (p) . Default value: p.\n";
         std::cout << "    --mem val : Memory limit. Can use suffix K,M,G. If makedb requires more memory, temp files in temp directory will be used. Default all available memory.\n";
         std::cout << "    --tempdir val : Temp directory for temporary files. Must exist. Default is db output directory.\n";
         return 0;
@@ -323,6 +323,7 @@ int main(int argc, char* argv[])
     const std::string fastafilename = argv[1];
     const std::string outputPrefix = argv[2];
     std::string temppath = outputPrefix;
+    cudasw4::SequenceType sequenceType = cudasw4::sSequenceType::Protein;
     size_t availableMem = getAvailableMemoryInKB() * 1024;
     constexpr size_t GB = 1024*1024*1024;
     if(availableMem > 1*GB){
@@ -331,7 +332,18 @@ int main(int argc, char* argv[])
 
     for(int i = 3; i < argc; i++){
         const std::string arg = argv[i];
-        if(arg == "--mem"){
+        if(arg == "--type"){
+            if(i + 1 < argc) { // Make sure there is a value after --type
+                std::string typeArg = argv[++i];
+                if(typeArg == "n") {
+                    sequenceType = cudasw4::SequenceType::Nucleotide;
+                }
+            } else {
+                std::cerr << "No sequence type specified after --type." << std::endl;
+                return 1;
+            }
+            argv[++i]
+        }else if(arg == "--mem"){
             availableMem = parseMemoryString(argv[++i]);
         }else if(arg == "--tempdir"){
            temppath = argv[++i];
@@ -358,7 +370,12 @@ int main(int argc, char* argv[])
 
     std::cout << "Converting amino acids\n";
     helpers::CpuTimer timer2("amino conversion");
-    thrust::transform(thrust::omp::par, batch.chars.begin(), batch.chars.end(), batch.chars.begin(), cudasw4::ConvertAA_20{});
+
+    if (sequenceType == cudasw4::SequenceType::Nucleotide) {
+        thrust::transform(thrust::omp::par, batch.chars.begin(), batch.chars.end(), batch.chars.begin(), cudasw4::ConvertNA{});
+    } else {
+        thrust::transform(thrust::omp::par, batch.chars.begin(), batch.chars.end(), batch.chars.begin(), cudasw4::ConvertAA_20{});
+    }
     timer2.print();
 
     std::cout << "Creating DB files\n";

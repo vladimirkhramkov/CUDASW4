@@ -8,6 +8,11 @@
 
 namespace cudasw4{
 
+enum class SequenceType {
+    Nucleotide,
+    Protein
+};
+
 enum class KernelType{
     Half2,
     DPXs16,
