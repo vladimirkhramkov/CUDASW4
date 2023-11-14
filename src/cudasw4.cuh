@@ -622,7 +622,7 @@ namespace cudasw4{
             const char* const end = begin + getReferenceLength(referenceId);
 
             std::string sequence(end - begin, '\0');
-            if (options.sequenceType == SequenceType::Protein) {
+            if (sequenceType == SequenceType::Protein) {
                 std::transform(
                     begin, 
                     end,
@@ -1224,7 +1224,7 @@ namespace cudasw4{
                 cudaMemsetAsync(ws.d_query.data() + currentQueryLength, 20, currentQueryLengthWithPadding - currentQueryLength, gpuStreams[gpu]);
                 cudaMemcpyAsync(ws.d_query.data(), query, currentQueryLength, cudaMemcpyDefault, gpuStreams[gpu]); CUERR
 
-                if (options.sequenceType == SequenceType::Protein) {
+                if (sequenceType == SequenceType::Protein) {
                     thrust::transform(
                         thrust::cuda::par_nosync.on(gpuStreams[gpu]),
                         ws.d_query.data(),
