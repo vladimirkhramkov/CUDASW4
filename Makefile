@@ -14,7 +14,6 @@ BUILDDIR = build
 
 MAKEDB = makedb
 MODIFYDB = modifydb
-GRIDSEARCH = gridsearch
 
 $(shell mkdir -p $(BUILDDIR))
 
@@ -42,9 +41,6 @@ $(MAKEDB): $(BUILDDIR)/makedb.o $(BUILDDIR)/sequence_io.o $(BUILDDIR)/dbdata.o
 
 $(MODIFYDB): $(BUILDDIR)/modifydb.o $(BUILDDIR)/sequence_io.o $(BUILDDIR)/dbdata.o
 	$(COMPILER) $^ -o $(MODIFYDB) $(LDFLAGS)
-
-$(GRIDSEARCH): $(BUILDDIR)/gridsearch.o $(BUILDDIR)/sequence_io.o $(BUILDDIR)/dbdata.o $(BUILDDIR)/sub_matrix.o $(BUILDDIR)/half2_kernel_instantiations.o $(BUILDDIR)/float_kernel_instantiations.o $(BUILDDIR)/dpx_s32_kernel_instantiations.o $(BUILDDIR)/dpx_s16_kernel_instantiations.o
-	$(COMPILER) $^ -o $(GRIDSEARCH) $(LDFLAGS)
 
 
 $(BUILDDIR)/main.o : src/main.cu src/sequence_io.h src/length_partitions.hpp src/dbdata.hpp src/cudasw4.cuh src/kernels.cuh src/convert.cuh src/float_kernels.cuh src/half2_kernels.cuh src/dpx_s16_kernels.cuh src/sub_matrix.hpp src/types.hpp
@@ -79,7 +75,3 @@ $(BUILDDIR)/makedb.o : src/makedb.cpp src/dbdata.hpp src/sequence_io.h
 
 $(BUILDDIR)/modifydb.o : src/modifydb.cpp src/dbdata.hpp src/sequence_io.h
 	$(COMPILE)
-
-$(BUILDDIR)/gridsearch.o : src/gridsearch.cu src/length_partitions.hpp src/dbdata.hpp
-	$(COMPILE)
-

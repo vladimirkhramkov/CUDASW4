@@ -181,14 +181,6 @@ void loadDBdata(const std::string& inputPrefix, DBdataWithVectors& result, size_
     }
 }
 
-
-
-
-
-
-
-
-
 void writeGlobalDbInfo(const std::string& outputPrefix, const DBGlobalInfo& /*info*/){
     //write info data to metadata file
     std::ofstream metadataout(outputPrefix + DBdataIoConfig::metadatafilename(), std::ios::binary);
@@ -203,7 +195,6 @@ void readGlobalDbInfo(const std::string& prefix, DBGlobalInfo& /*info*/){
 
 }
 
-
 DB loadDB(const std::string& prefix, bool writeAccess, bool prefetchSeq){
 
     try{
@@ -211,6 +202,7 @@ DB loadDB(const std::string& prefix, bool writeAccess, bool prefetchSeq){
         readGlobalDbInfo(prefix, result.info);
 
         const std::string chunkPrefix = prefix + std::to_string(0);
+
         result.data = DBdata(chunkPrefix, writeAccess, prefetchSeq, 0);
 
         return result;

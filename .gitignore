@@ -3,3 +3,4 @@ makedb
 modifydb
 build/
 .vscode/
+out.*

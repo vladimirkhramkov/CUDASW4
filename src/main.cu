@@ -169,6 +169,7 @@ int main(int argc, char* argv[])
             helpers::CpuTimer timer_read_db("Read DB");
             constexpr bool writeAccess = false;
             const bool prefetchSeq = options.prefetchDBFile;
+
             auto fullDB_tmp = std::make_shared<cudasw4::DB>(cudasw4::loadDB(options.dbPrefix, writeAccess, prefetchSeq));
             if(options.verbose){
                 timer_read_db.print();

@@ -134,7 +134,7 @@ void loadWholeFileIntoBatch_withPaddedSequences(const std::string& inputfilename
 }
 
 template<class Batch>
-void loadWholeFileIntoBatch_withPaddedConvertedSequences(const std::string& inputfilename, Batch& batch){
+void loadWholeFileIntoBatch_withPaddedConvertedSequences(const std::string& inputfilename, Batch& batch, const cudasw4::SequenceType& sequenceType){
     constexpr int ALIGN = 4;
 
     batch.chars.clear();
@@ -169,9 +169,17 @@ void loadWholeFileIntoBatch_withPaddedConvertedSequences(const std::string& inpu
         const size_t oldCharsSize = batch.chars.size();
         const size_t newCharsSize = oldCharsSize + sequence.size() + sequencepadding;
         batch.chars.resize(newCharsSize);
-        auto convert = cudasw4::ConvertAA_20{};
-        auto it = std::transform(sequence.begin(), sequence.end(), batch.chars.begin() + oldCharsSize, convert);
-        std::fill(it, batch.chars.end(), convert(' ')); // add converted padding
+
+        if (sequenceType == cudasw4::SequenceType::Protein) {
+            auto convert = cudasw4::ConvertAA_20{};
+            auto it = std::transform(sequence.begin(), sequence.end(), batch.chars.begin() + oldCharsSize, convert);
+            std::fill(it, batch.chars.end(), convert(' ')); // add converted padding
+        } else {
+            auto convert = cudasw4::ConvertNA{};
+            auto it = std::transform(sequence.begin(), sequence.end(), batch.chars.begin() + oldCharsSize, convert);
+            std::fill(it, batch.chars.end(), convert(' ')); // add converted padding
+        }
+
         batch.offsets.push_back(newCharsSize);
         batch.lengths.push_back(sequence.size());
 
@@ -360,7 +368,7 @@ int main(int argc, char* argv[])
 
     std::cout << "Parsing file\n";
     helpers::CpuTimer timer1("file parsing");
-    //loadWholeFileIntoBatch_withPaddedConvertedSequences(fastafilename, batch);
+    //loadWholeFileIntoBatch_withPaddedConvertedSequences(fastafilename, batch, sequenceType);
     loadWholeFileIntoBatch_withPaddedSequences(fastafilename, batch);
     timer1.print();
 
