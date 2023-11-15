@@ -97,6 +97,8 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
         const std::string arg = argv[i];
         if(arg == "--help"){
             options.help = true;
+        }else if(arg == "--version"){
+            options.version = true;
         }else if(arg == "--uploadFull"){
             options.loadFullDBToGpu = true;
         }else if(arg == "--verbose"){
@@ -214,11 +216,11 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
     }
 
     if(!gotQuery){
-        std::cout << "Query is missing\n";
+        // std::cout << "Query is missing\n";
         return false;
     }
     if(!gotDB){
-        std::cout << "DB prefix is missing\n";
+        // std::cout << "DB prefix is missing\n";
         return false;
     }
 
