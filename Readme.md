@@ -103,7 +103,7 @@ Depending on the database size and available total GPU memory, the database is t
     --dpx : Use DPX instructions. Hardware support requires Hopper (sm_90) or newer. Older GPUs fall back to software emulation.
     --verbose : More console output. Shows timings.
     --printLengthPartitions : Print number of sequences per length partition in db.
-    --interactive : Loads DB, then waits for sequence input by user
+    --version : Print program version
     --help : Print all options
 ```
 

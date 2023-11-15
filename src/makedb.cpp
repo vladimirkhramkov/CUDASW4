@@ -375,8 +375,8 @@ int main(int argc, char* argv[])
     std::cout << "Number of input sequences:  " << batch.offsets.size() - 1 << '\n';
     std::cout << "Number of input characters: " << batch.chars.size() << '\n';
 
-    std::cout << "Converting amino acids\n";
-    helpers::CpuTimer timer2("amino conversion");
+    std::cout << "Converting sequences\n";
+    helpers::CpuTimer timer2("sequences conversion");
 
     if (sequenceType == cudasw4::SequenceType::Nucleotide) {
         thrust::transform(thrust::omp::par, batch.chars.begin(), batch.chars.end(), batch.chars.begin(), cudasw4::ConvertNA{});

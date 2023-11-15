@@ -1,6 +1,7 @@
 #include "options.hpp"
 #include "types.hpp"
 #include "hpc_helpers/all_helpers.cuh"
+#include "version.hpp"
 
 #include <string>
 #include <iostream>
@@ -8,7 +9,6 @@
 void printOptions(const ProgramOptions& options){
     std::cout << "Selected options:\n";
     std::cout << "verbose: " << options.verbose << "\n";
-    std::cout << "interactive: " << options.interactive << "\n";
     std::cout << "loadFullDBToGpu: " << options.loadFullDBToGpu << "\n";
     std::cout << "prefetchDBFile: " << options.prefetchDBFile << "\n";
     std::cout << "numTopOutputs: " << options.numTopOutputs << "\n";
@@ -26,15 +26,15 @@ void printOptions(const ProgramOptions& options){
     #else
     std::cout << "matrix: " << to_string_nodim(options.subMatrixType) << "\n";
     #endif
-    std::cout << "singlePassType: " << to_string(options.singlePassType) << "\n";
-    std::cout << "manyPassType_small: " << to_string(options.manyPassType_small) << "\n";
-    std::cout << "manyPassType_large: " << to_string(options.manyPassType_large) << "\n";
-    std::cout << "overflowType: " << to_string(options.overflowType) << "\n";
-    if(options.usePseudoDB){
-        std::cout << "Using built-in pseudo db with " << options.pseudoDBSize << " sequences of length " << options.pseudoDBLength << "\n";
-    }else{
-        std::cout << "Using db file: " << options.dbPrefix << "\n";
-    }
+    // std::cout << "singlePassType: " << to_string(options.singlePassType) << "\n";
+    // std::cout << "manyPassType_small: " << to_string(options.manyPassType_small) << "\n";
+    // std::cout << "manyPassType_large: " << to_string(options.manyPassType_large) << "\n";
+    // std::cout << "overflowType: " << to_string(options.overflowType) << "\n";
+    // if(options.usePseudoDB){
+    //     std::cout << "Using built-in pseudo db with " << options.pseudoDBSize << " sequences of length " << options.pseudoDBLength << "\n";
+    // }else{
+    std::cout << "Using db file: " << options.dbPrefix << "\n";
+    // }
     std::cout << "memory limit per gpu: " << (options.maxGpuMem == std::numeric_limits<size_t>::max() ? 
         "unlimited" : std::to_string(options.maxGpuMem)) << "\n"; 
 
@@ -101,8 +101,6 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
             options.loadFullDBToGpu = true;
         }else if(arg == "--verbose"){
             options.verbose = true;            
-        }else if(arg == "--interactive"){
-            options.interactive = true;            
         }else if(arg == "--printLengthPartitions"){
             options.printLengthPartitions = true;
         }else if(arg == "--prefetchDBFile"){
@@ -174,11 +172,11 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
             options.manyPassType_large = stringToKernelType(argv[++i]);
         }else if(arg == "--overflowType"){
             options.overflowType = stringToKernelType(argv[++i]);
-        }else if(arg == "--pseudodb"){
-            options.usePseudoDB = true;
-            options.pseudoDBSize = std::atoi(argv[++i]);
-            options.pseudoDBLength = std::atoi(argv[++i]);
-            gotDB = true;
+        // }else if(arg == "--pseudodb"){
+        //     options.usePseudoDB = true;
+        //     options.pseudoDBSize = std::atoi(argv[++i]);
+        //     options.pseudoDBLength = std::atoi(argv[++i]);
+        //     gotDB = true;
         }else if(arg == "--dpx"){
             gotDPX = true;
         }else if(arg == "--tsv"){
@@ -227,6 +225,10 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
     return true;
 }
 
+void printVersion() {
+    std::cout << "Version: " << cudasw4::PROGRAM_VERSION << std::endl;
+}
+
 void printHelp(int /*argc*/, char** argv){
     ProgramOptions defaultoptions;
 
@@ -266,19 +268,17 @@ void printHelp(int /*argc*/, char** argv){
     std::cout << "      --tsv : Print results as tab-separated values instead of plain text. \n";
     std::cout << "      --verbose : More console output. Shows timings. \n";
     std::cout << "      --printLengthPartitions : Print number of sequences per length partition in db.\n";
-    std::cout << "      --interactive : Loads DB, then waits for sequence input by user\n";
+    std::cout << "      --version : Print program version\n";
     std::cout << "      --help : Print this message\n";
     std::cout << "\n";
 
     std::cout << "   Performance and benchmarking\n";
     std::cout << "      --prefetchDBFile : Load DB into RAM immediately at program start instead of waiting for the first access.\n";
     std::cout << "      --uploadFull : If enough GPU memory is available to store full db, copy full DB to GPU before processing queries.\n";
-    std::cout << "      --pseudodb num length : Use a generated DB which contains `num` equal sequences of length `length`.\n";
+    // std::cout << "      --pseudodb num length : Use a generated DB which contains `num` equal sequences of length `length`.\n";
     std::cout << "      --singlePassType val, --manyPassType_small val, --manyPassType_large val, --overflowType val :\n";
     std::cout << "           Select kernel types for different length partitions. Valid values: Half2, DPXs16, DPXs32, Float.\n";
     std::cout << "           Misc option --dpx is equivalent to --singlePassType DPXs16 --manyPassType_small DPXs16 --manyPassType_large DPXs32 --overflowType DPXs32.\n";
     std::cout << "           Default is --singlePassType Half2 --manyPassType_small Half2 --manyPassType_large Float --overflowType Float.\n";
     std::cout << "\n";
-
-            
 }

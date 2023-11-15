@@ -12,11 +12,11 @@ struct ProgramOptions{
         TSV
     };
 
+    bool version = false;
     bool help = false;
     bool loadFullDBToGpu = false;
     bool usePseudoDB = false;
     bool printLengthPartitions = false;
-    bool interactive = false;
     bool verbose = false;
     bool prefetchDBFile = false;
     int numTopOutputs = 10;
@@ -54,6 +54,8 @@ struct ProgramOptions{
 void printOptions(const ProgramOptions& options);
 
 bool parseArgs(int argc, char** argv, ProgramOptions& options);
+
+void printVersion();
 
 void printHelp(int argc, char** argv);
 

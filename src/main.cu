@@ -1,6 +1,3 @@
-
-
-
 #include <algorithm>
 #include <iostream>
 #include <sstream>
@@ -97,6 +94,11 @@ int main(int argc, char* argv[])
 {
     ProgramOptions options;
     bool parseSuccess = parseArgs(argc, argv, options);
+
+    if (options.version) {
+        printVersion();
+        return 0;
+    }
 
     if(!parseSuccess || options.help){
         printHelp(argc, argv);
@@ -212,214 +214,123 @@ int main(int argc, char* argv[])
         cudaSW4.prefetchFullDBToGpus();
     }
 
-    if(!options.interactive){
+    //non interactive mode
+    for(const auto& queryFile : options.queryFiles){
+        std::cout << "Processing query file " << queryFile << "\n";
+    // 0 load all queries into memory, then process.
+    // 1 load and process queries one after another
+    #if 1
+        kseqpp::KseqPP reader(queryFile);
+        int64_t query_num = 0;
 
-        for(const auto& queryFile : options.queryFiles){
-            std::cout << "Processing query file " << queryFile << "\n";
-        // 0 load all queries into memory, then process.
-        // 1 load and process queries one after another
-        #if 1
+        cudaSW4.totalTimerStart();
+
+        while(reader.next() >= 0){
+            std::cout << "Processing query " << query_num << " ... ";
+            std::cout.flush();
+            const std::string& header = reader.getCurrentHeader();
+            const std::string& sequence = reader.getCurrentSequence();
+
+            ScanResult scanResult = cudaSW4.scan(sequence.data(), sequence.size());
+            if(options.verbose){
+                std::cout << "Done. Scan time: " << scanResult.stats.seconds << " s, " << scanResult.stats.gcups << " GCUPS\n";
+            }else{
+                std::cout << "Done.\n";
+            }
+
+            if(options.numTopOutputs > 0){
+                if(options.outputMode == ProgramOptions::OutputMode::Plain){
+                    outputfile << "Query " << query_num << ", header" <<  header
+                        << ", length " << sequence.size()
+                        << ", num overflows " << scanResult.stats.numOverflows << "\n";
+
+                    printScanResultPlain(outputfile, scanResult, cudaSW4);
+                }else{
+                    printScanResultTSV(outputfile, scanResult, cudaSW4, query_num, sequence.size(), header);
+                }
+                outputfile.flush();
+            }
+
+            query_num++;
+        }
+
+        auto totalBenchmarkStats = cudaSW4.totalTimerStop();
+        if(options.verbose){
+            std::cout << "Total time: " << totalBenchmarkStats.seconds << " s, " << totalBenchmarkStats.gcups << " GCUPS\n";
+        }
+
+    #else
+
+        BatchOfQueries batchOfQueries;
+        {
+            
+            constexpr int ALIGN = 4;
             kseqpp::KseqPP reader(queryFile);
-            int64_t query_num = 0;
-
-            cudaSW4.totalTimerStart();
-
+            batchOfQueries.offsets.push_back(0);
             while(reader.next() >= 0){
-                std::cout << "Processing query " << query_num << " ... ";
-                std::cout.flush();
                 const std::string& header = reader.getCurrentHeader();
                 const std::string& sequence = reader.getCurrentSequence();
+                //we ignore quality
+                //const std::string& quality = reader.getCurrentQuality();
 
-                ScanResult scanResult = cudaSW4.scan(sequence.data(), sequence.size());
-                if(options.verbose){
-                    std::cout << "Done. Scan time: " << scanResult.stats.seconds << " s, " << scanResult.stats.gcups << " GCUPS\n";
-                }else{
-                    std::cout << "Done.\n";
+                batchOfQueries.chars.insert(batchOfQueries.chars.end(), sequence.begin(), sequence.end());
+                //padding
+                if(batchOfQueries.chars.size() % ALIGN != 0){
+                    batchOfQueries.chars.insert(batchOfQueries.chars.end(), ALIGN - batchOfQueries.chars.size() % ALIGN, ' ');
                 }
 
-                if(options.numTopOutputs > 0){
-                    if(options.outputMode == ProgramOptions::OutputMode::Plain){
-                        outputfile << "Query " << query_num << ", header" <<  header
-                            << ", length " << sequence.size()
-                            << ", num overflows " << scanResult.stats.numOverflows << "\n";
-
-                        printScanResultPlain(outputfile, scanResult, cudaSW4);
-                    }else{
-                        printScanResultTSV(outputfile, scanResult, cudaSW4, query_num, sequence.size(), header);
-                    }
-                    outputfile.flush();
-                }
-
-                query_num++;
+                batchOfQueries.offsets.push_back(batchOfQueries.chars.size());
+                batchOfQueries.lengths.push_back(sequence.size());
+                batchOfQueries.headers.push_back(header);
             }
-
-            auto totalBenchmarkStats = cudaSW4.totalTimerStop();
-            if(options.verbose){
-                std::cout << "Total time: " << totalBenchmarkStats.seconds << " s, " << totalBenchmarkStats.gcups << " GCUPS\n";
-            }
-
-        #else
-
-            BatchOfQueries batchOfQueries;
-            {
-                
-                constexpr int ALIGN = 4;
-                kseqpp::KseqPP reader(queryFile);
-                batchOfQueries.offsets.push_back(0);
-                while(reader.next() >= 0){
-                    const std::string& header = reader.getCurrentHeader();
-                    const std::string& sequence = reader.getCurrentSequence();
-                    //we ignore quality
-                    //const std::string& quality = reader.getCurrentQuality();
-
-                    batchOfQueries.chars.insert(batchOfQueries.chars.end(), sequence.begin(), sequence.end());
-                    //padding
-                    if(batchOfQueries.chars.size() % ALIGN != 0){
-                        batchOfQueries.chars.insert(batchOfQueries.chars.end(), ALIGN - batchOfQueries.chars.size() % ALIGN, ' ');
-                    }
-
-                    batchOfQueries.offsets.push_back(batchOfQueries.chars.size());
-                    batchOfQueries.lengths.push_back(sequence.size());
-                    batchOfQueries.headers.push_back(header);
-                }
-            }
-
-            int64_t numQueries = batchOfQueries.lengths.size();
-            const char* maxNumQueriesString = std::getenv("ALIGNER_MAX_NUM_QUERIES");
-            if(maxNumQueriesString != nullptr){
-                int64_t maxNumQueries = std::atoi(maxNumQueriesString);
-                numQueries = std::min(numQueries, maxNumQueries);
-            }
-        
-            std::vector<ScanResult> scanResults(numQueries);
-
-            cudaSW4.totalTimerStart();
-
-            for(int64_t query_num = 0; query_num < numQueries; ++query_num) {
-                std::cout << "Processing query " << query_num << " ... ";
-                std::cout.flush();
-                const size_t offset = batchOfQueries.offsets[query_num];
-                const cudasw4::SequenceLengthT length = batchOfQueries.lengths[query_num];
-                const char* sequence = batchOfQueries.chars.data() + offset;
-                ScanResult scanResult = cudaSW4.scan(sequence, length);
-                scanResults[query_num] = scanResult;
-                if(options.verbose){
-                    std::cout << "Done. Scan time: " << scanResult.stats.seconds << " s, " << scanResult.stats.gcups << " GCUPS\n";
-                }else{
-                    std::cout << "Done.\n";
-                }
-            }
-
-            auto totalBenchmarkStats = cudaSW4.totalTimerStop();
-
-            if(options.verbose){
-                std::cout << "Total time: " << totalBenchmarkStats.seconds << " s, " << totalBenchmarkStats.gcups << " GCUPS\n";
-            }
-            if(options.numTopOutputs > 0){
-                for(int64_t query_num = 0; query_num < numQueries; ++query_num) {
-                    const ScanResult& scanResult = scanResults[query_num];
-
-                    if(options.outputMode == ProgramOptions::OutputMode::Plain){
-                        outputfile << "Query " << query_num << ", header" <<  batchOfQueries.headers[query_num] 
-                            << ", length " << batchOfQueries.lengths[query_num]
-                            << ", num overflows " << scanResult.stats.numOverflows << "\n";
-                        printScanResultPlain(outputfile, scanResult, cudaSW4);
-                    }else{
-                        printScanResultTSV(outputfile, scanResult, cudaSW4, query_num, batchOfQueries.lengths[query_num], batchOfQueries.headers[query_num]);
-                    }
-                }
-            }
-        #endif
-
         }
-    }else{
-        std::cout << "Interactive mode ready\n";
-        std::cout << "Use 's inputsequence' to query inputsequence against the database. Press ENTER twice to begin.\n";
-        std::cout << "Use 'f inputfile' to query all sequences in inputfile\n";
-        std::cout << "Use 'exit' to terminate\n";
-        std::cout << "Waiting for command...\n";
 
-        std::string line;
-        while(std::getline(std::cin, line)){
-            auto tokens = split(line, ' ');
-            if(tokens.size() == 0) continue;
+        int64_t numQueries = batchOfQueries.lengths.size();
+        const char* maxNumQueriesString = std::getenv("ALIGNER_MAX_NUM_QUERIES");
+        if(maxNumQueriesString != nullptr){
+            int64_t maxNumQueries = std::atoi(maxNumQueriesString);
+            numQueries = std::min(numQueries, maxNumQueries);
+        }
+    
+        std::vector<ScanResult> scanResults(numQueries);
 
-            const auto& command = tokens[0];
-            if(command == "exit"){
-                break;
-            }else if(command == "s"){
-                if(tokens.size() > 1){
-                    auto& sequence = tokens[1];
+        cudaSW4.totalTimerStart();
 
-                    //read the remaining lines to catch multi-line sequence input (for example copy&paste fasta sequence)
-                    while(std::getline(std::cin, line)){
-                        if(line.empty()) break;
-                        sequence += line;
-                    }
-
-                    std::cout << "sequence: " << sequence << "\n";
-                    std::cout << "Processing query " << 0 << " ... ";
-                    std::cout.flush();
-                    ScanResult scanResult = cudaSW4.scan(sequence.data(), sequence.size());
-                    if(options.verbose){
-                        std::cout << "Done. Scan time: " << scanResult.stats.seconds << " s, " << scanResult.stats.gcups << " GCUPS\n";
-                    }else{
-                        std::cout << "Done.\n";
-                    }
-
-                    if(options.outputMode == ProgramOptions::OutputMode::Plain){
-                        printScanResultPlain(outputfile, scanResult, cudaSW4);
-                    }else{
-                        printScanResultTSV(outputfile, scanResult, cudaSW4, -1, sequence.size(), "-");
-                    }
-                }else{
-                    std::cout << "Missing argument for command 's'\n";
-                }
-            }else if(command == "f"){
-                if(tokens.size() > 1){
-                    const auto& filename = tokens[1];
-                    try{
-                        kseqpp::KseqPP reader(filename);
-                        int64_t query_num = 0;
-
-                        while(reader.next() >= 0){
-                            std::cout << "Processing query " << query_num << " ... ";
-                            std::cout.flush();
-                            const std::string& header = reader.getCurrentHeader();
-                            const std::string& sequence = reader.getCurrentSequence();
-
-                            ScanResult scanResult = cudaSW4.scan(sequence.data(), sequence.size());
-                            if(options.verbose){
-                                std::cout << "Done. Scan time: " << scanResult.stats.seconds << " s, " << scanResult.stats.gcups << " GCUPS\n";
-                            }else{
-                                std::cout << "Done.\n";
-                            }
-
-                            if(options.outputMode == ProgramOptions::OutputMode::Plain){
-                                std::cout << "Query " << query_num << ", header" <<  header
-                                << ", length " << sequence.size()
-                                << ", num overflows " << scanResult.stats.numOverflows << "\n";
-
-                                printScanResultPlain(outputfile, scanResult, cudaSW4);
-                            }else{
-                                printScanResultTSV(outputfile, scanResult, cudaSW4, -1, sequence.size(), "-");
-                            }
-
-                            query_num++;
-                        }
-                    }catch(...){
-                        std::cout << "Error\n";
-                    }
-                }else{
-                    std::cout << "Missing argument for command 'f' \n";
-                }
+        for(int64_t query_num = 0; query_num < numQueries; ++query_num) {
+            std::cout << "Processing query " << query_num << " ... ";
+            std::cout.flush();
+            const size_t offset = batchOfQueries.offsets[query_num];
+            const cudasw4::SequenceLengthT length = batchOfQueries.lengths[query_num];
+            const char* sequence = batchOfQueries.chars.data() + offset;
+            ScanResult scanResult = cudaSW4.scan(sequence, length);
+            scanResults[query_num] = scanResult;
+            if(options.verbose){
+                std::cout << "Done. Scan time: " << scanResult.stats.seconds << " s, " << scanResult.stats.gcups << " GCUPS\n";
             }else{
-                std::cout << "Unrecognized command: " << command << "\n";
+                std::cout << "Done.\n";
             }
-
-            std::cout << "Waiting for command...\n";
         }
+
+        auto totalBenchmarkStats = cudaSW4.totalTimerStop();
+
+        if(options.verbose){
+            std::cout << "Total time: " << totalBenchmarkStats.seconds << " s, " << totalBenchmarkStats.gcups << " GCUPS\n";
+        }
+        if(options.numTopOutputs > 0){
+            for(int64_t query_num = 0; query_num < numQueries; ++query_num) {
+                const ScanResult& scanResult = scanResults[query_num];
+
+                if(options.outputMode == ProgramOptions::OutputMode::Plain){
+                    outputfile << "Query " << query_num << ", header" <<  batchOfQueries.headers[query_num] 
+                        << ", length " << batchOfQueries.lengths[query_num]
+                        << ", num overflows " << scanResult.stats.numOverflows << "\n";
+                    printScanResultPlain(outputfile, scanResult, cudaSW4);
+                }else{
+                    printScanResultTSV(outputfile, scanResult, cudaSW4, query_num, batchOfQueries.lengths[query_num], batchOfQueries.headers[query_num]);
+                }
+            }
+        }
+    #endif
 
     }
-
 }
