@@ -375,14 +375,29 @@ int main(int argc, char* argv[])
     std::cout << "Number of input sequences:  " << batch.offsets.size() - 1 << '\n';
     std::cout << "Number of input characters: " << batch.chars.size() << '\n';
 
+    return 0;
+
     std::cout << "Converting sequences\n";
     helpers::CpuTimer timer2("sequences conversion");
 
     if (sequenceType == cudasw4::SequenceType::Nucleotide) {
-        thrust::transform(thrust::omp::par, batch.chars.begin(), batch.chars.end(), batch.chars.begin(), cudasw4::ConvertNA{});
+        thrust::transform(
+            thrust::omp::par,        // 1. Execution policy
+            batch.chars.begin(),     // 2. Input Begin Iterator
+            batch.chars.end(),       // 3. Input End Iterator
+            batch.chars.begin(),     // 4. Output Begin Iterator
+            cudasw4::ConvertNA{}     // 5. Unary Operator (Function Object)
+        );
     } else {
-        thrust::transform(thrust::omp::par, batch.chars.begin(), batch.chars.end(), batch.chars.begin(), cudasw4::ConvertAA_20{});
+        thrust::transform(
+            thrust::omp::par,        // 1. Execution policy
+            batch.chars.begin(),     // 2. Input Begin Iterator
+            batch.chars.end(),       // 3. Input End Iterator
+            batch.chars.begin(),     // 4. Output Begin Iterator
+            cudasw4::ConvertAA_20{}     // 5. Unary Operator (Function Object)
+        );        
     }
+
     timer2.print();
 
     std::cout << "Creating DB files\n";
