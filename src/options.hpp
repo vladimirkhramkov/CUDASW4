@@ -24,6 +24,7 @@ struct ProgramOptions{
     int gex = -1;
     int pseudoDBLength = 0;
     int pseudoDBSize = 0;
+
     cudasw4::SequenceType sequenceType = cudasw4::SequenceType::Protein;
     cudasw4::SubMatrixType subMatrixType = cudasw4::SubMatrixType::BLOSUM62_20;
     cudasw4::KernelType singlePassType = cudasw4::KernelType::Half2;
@@ -40,6 +41,10 @@ struct ProgramOptions{
 
     std::string outputfile = "/dev/stdout";
     std::string dbPrefix;
+
+    std::string progressKey = "";
+    std::string progressPipePath = "";
+
     std::vector<std::string> queryFiles;
 
     std::string outputModeString() const{

@@ -481,8 +481,10 @@ namespace cudasw4{
             SubMatrixType subMatrixType,
             const KernelTypeConfig& kernelTypeConfig,
             const MemoryConfig& memoryConfig,
-            bool verbose_
-        ) : deviceIds(std::move(deviceIds_)), verbose(verbose_)
+            bool verbose_,
+            std::string progressKey_,
+            int progressFileDescriptor_
+        ) : deviceIds(std::move(deviceIds_)), verbose(verbose_), progressKey(progressKey_), progressFileDescription(progressFileDescriptor_)
         {
             if(deviceIds.size() == 0){ 
                 throw std::runtime_error("No device selected");
@@ -1354,6 +1356,10 @@ namespace cudasw4{
             size_t totalNumberOfSequencesToProcess = std::reduce(numberOfSequencesPerGpu.begin(), numberOfSequencesPerGpu.end());
             
             size_t totalNumberOfProcessedSequences = 0;
+   			int oldPercent = totalNumberOfProcessedSequences * 100LL / totalNumberOfSequencesToProcess;
+			int newPercent = oldPercent;
+
+            dprintf(progressFileDescription, "%s#%d\n", progressKey.c_str(), newPercent);
             // std::vector<size_t> processedSequencesPerGpu(numGpus, 0);
         
             // std::vector<size_t> processedBatchesPerGpu(numGpus, 0);
@@ -2094,6 +2100,12 @@ namespace cudasw4{
                         variables.processedBatches++;
         
                         totalNumberOfProcessedSequences += plan.usedSeq;
+
+                        newPercent = totalNumberOfProcessedSequences * 100LL / totalNumberOfSequencesToProcess;
+                        if (newPercent > oldPercent) {
+                            dprintf(progressFileDescription, "%s#%d\n", progressKey.c_str(), newPercent);
+                            oldPercent = newPercent;
+                        }
                     } 
                 }
         
@@ -2225,6 +2237,9 @@ namespace cudasw4{
         MemoryConfig memoryConfig;
         
         std::vector<int> deviceIds;
+
+        std::string progressKey = "";
+        int progressFileDescription = -1;
 
     };
 

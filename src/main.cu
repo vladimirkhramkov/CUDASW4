@@ -149,9 +149,12 @@ int main(int argc, char* argv[])
     if(!bool(outputfile)){
         throw std::runtime_error("Cannot open file " + options.outputfile);
     }
+
     if(options.outputMode == ProgramOptions::OutputMode::TSV){
         printTSVHeader(outputfile);
     }
+
+    int progressFileDescriptor = options.progressPipePath.length() == 0 ? -1 : open(options.progressPipePath.c_str(), O_WRONLY | O_NONBLOCK);
 
     cudasw4::CudaSW4 cudaSW4(
         deviceIds, 
@@ -160,7 +163,9 @@ int main(int argc, char* argv[])
         options.subMatrixType, 
         kernelTypeConfig, 
         memoryConfig, 
-        options.verbose
+        options.verbose,
+        options.progressKey,
+        progressFileDescriptor
     );
 
     if(!options.usePseudoDB){
@@ -246,4 +251,6 @@ int main(int argc, char* argv[])
             std::cout << "Total time: " << totalBenchmarkStats.seconds << " s, " << totalBenchmarkStats.gcups << " GCUPS\n";
         }
     }
+
+    if (progressFileDescriptor != -1) close(progressFileDescriptor);
 }

@@ -9,14 +9,10 @@
 void printOptions(const ProgramOptions& options){
     std::cout << "Selected options:\n";
     std::cout << "verbose: " << options.verbose << "\n";
-    // std::cout << "loadFullDBToGpu: " << options.loadFullDBToGpu << "\n";
-    // std::cout << "prefetchDBFile: " << options.prefetchDBFile << "\n";
     std::cout << "numTopOutputs: " << options.numTopOutputs << "\n";
     std::cout << "gop: " << options.gop << "\n";
     std::cout << "gex: " << options.gex << "\n";
-    // std::cout << "maxBatchBytes: " << options.maxBatchBytes << "\n";
-    // std::cout << "maxBatchSequences: " << options.maxBatchSequences << "\n";
-    // std::cout << "maxTempBytes: " << options.maxTempBytes << "\n";
+
     for(size_t i = 0; i < options.queryFiles.size(); i++){
         std::cout << "queryFile " << i  << " : " << options.queryFiles[i] << "\n";
     }
@@ -26,21 +22,11 @@ void printOptions(const ProgramOptions& options){
     #else
     std::cout << "matrix: " << to_string_nodim(options.subMatrixType) << "\n";
     #endif
-    // std::cout << "singlePassType: " << to_string(options.singlePassType) << "\n";
-    // std::cout << "manyPassType_small: " << to_string(options.manyPassType_small) << "\n";
-    // std::cout << "manyPassType_large: " << to_string(options.manyPassType_large) << "\n";
-    // std::cout << "overflowType: " << to_string(options.overflowType) << "\n";
-    // if(options.usePseudoDB){
-    //     std::cout << "Using built-in pseudo db with " << options.pseudoDBSize << " sequences of length " << options.pseudoDBLength << "\n";
-    // }else{
+
     std::cout << "Using db file: " << options.dbPrefix << "\n";
-    // }
-    // std::cout << "memory limit per gpu: " << (options.maxGpuMem == std::numeric_limits<size_t>::max() ? 
-    //     "unlimited" : std::to_string(options.maxGpuMem)) << "\n"; 
 
     std::cout << "Output mode: " << options.outputModeString() << "\n";
     std::cout << "Output file: " << options.outputfile << "\n";
-    
 }
 
 bool parseArgs(int argc, char** argv, ProgramOptions& options){
@@ -131,8 +117,10 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
             options.outputfile = argv[++i];
         }else if(arg == "-progress_key"){
             // search identifier used in search progress notifications
+            options.progressKey = std::string(argv[++i]);
         }else if(arg == "-progress_pipe"){
             // progress pipe file path
+            options.progressPipePath = std::string(argv[++i]);
         }else{
             std::cout << "Unexpected arg " << arg << "\n";
         }
@@ -191,7 +179,7 @@ void printHelp(int /*argc*/, char** argv){
     std::cout << "\n";
 
     std::cout << "   Scoring\n";
-    std::cout << "      -min_score <integer>	: specify the minimum score reported(default 100)\n";
+    std::cout << "      -min_score val : Specify the minimum score reported. Default val = 100\n";
 
     std::cout << "      -top or -topscore_num val : Output the val best scores. Default val = " << defaultoptions.numTopOutputs << "\n";
     std::cout << "      -gop or -gapo val : Gap open score. Overwrites our matrix-dependent default score.\n";
@@ -208,6 +196,49 @@ void printHelp(int /*argc*/, char** argv){
 
     std::cout << "\n";
 
+    std::cout << "   Output options\n";
+    std::cout << "      -out : Result output file. Parent directory must exist. Default: console output (/dev/stdout)\n";
+    std::cout << "      -outfmt \"<string> <string> ... <string>\" 	: Specify the output file columns\n";
+    std::cout << "       supported column names: qacc, qlen, sacc, slen, score, length, nident, gaps, qstart, qend, sstart,\n"; 
+    std::cout << "                               send, positive, btop, topline, middleline, bottomline, reversed\n";
+    std::cout << "      -progress_key	: Search identifier used in search progress notifications\n";
+    std::cout << "      -progress_pipe	: Progress pipe file path\n";
+    std::cout << "\n";
+
+    std::cout << "   Misc\n";
+    std::cout << "      -subject_length_min val : Specify the minimum subject sequence length. Default val = 1\n";
+    std::cout << "      -subject_length_max val : Specify the maximum subject sequence length. Default val = 1,000,000\n";
+
+    std::cout << "      -verbose : More console output. Shows timings. \n";
+    std::cout << "      -version : Print program version\n";
+    std::cout << "      -help : Print this message\n";
+    std::cout << "\n";
+
+    std::cout << "   Performance and benchmarking\n";
+    std::cout << "      -use_single <integer>	: force to use the single GPU with ID #integer\n";
+    std::cout << "\n";
+
+}
+
+    // }
+    // std::cout << "memory limit per gpu: " << (options.maxGpuMem == std::numeric_limits<size_t>::max() ? 
+    //     "unlimited" : std::to_string(options.maxGpuMem)) << "\n"; 
+
+    // std::cout << "singlePassType: " << to_string(options.singlePassType) << "\n";
+    // std::cout << "manyPassType_small: " << to_string(options.manyPassType_small) << "\n";
+    // std::cout << "manyPassType_large: " << to_string(options.manyPassType_large) << "\n";
+    // std::cout << "overflowType: " << to_string(options.overflowType) << "\n";
+    // if(options.usePseudoDB){
+    //     std::cout << "Using built-in pseudo db with " << options.pseudoDBSize << " sequences of length " << options.pseudoDBLength << "\n";
+    // }else{
+
+    // std::cout << "maxBatchBytes: " << options.maxBatchBytes << "\n";
+    // std::cout << "maxBatchSequences: " << options.maxBatchSequences << "\n";
+    // std::cout << "maxTempBytes: " << options.maxTempBytes << "\n";
+
+    // std::cout << "loadFullDBToGpu: " << options.loadFullDBToGpu << "\n";
+    // std::cout << "prefetchDBFile: " << options.prefetchDBFile << "\n";
+
     // std::cout << "   Memory\n";
     // std::cout << "      --maxGpuMem val : Try not to use more than val bytes of gpu memory per gpu. Uses all available gpu memory by default\n";
     // std::cout << "      --maxTempBytes val : Size of temp storage in GPU memory. Can use suffix K,M,G. Default val = " << defaultoptions.maxTempBytes << "\n";
@@ -215,27 +246,9 @@ void printHelp(int /*argc*/, char** argv){
     // std::cout << "      --maxBatchSequences val : Process DB in batches of at most val sequences. Default val = " << defaultoptions.maxBatchSequences << "\n";
     // std::cout << "\n";
 
-    std::cout << "   Output options\n";
-    std::cout << "      -out : Result output file. Parent directory must exist. Default: console output (/dev/stdout)\n";
-    std::cout << "      -outfmt \"<string> <string> ... <string>\" 	: specify the output file columns\n";
-    std::cout << "       supported column names: qacc, qlen, sacc, slen, score, length, nident, gaps, qstart, qend, sstart,\n"; 
-    std::cout << "                               send, positive, btop, topline, middleline, bottomline, reversed\n";
-    std::cout << "      -progress_key	: search identifier used in search progress notifications\n";
-    std::cout << "      -progress_pipe	: progress pipe file path\n";
-    std::cout << "\n";
-
-    std::cout << "   Misc\n";
 //    std::cout << "      -dpx : Use DPX instructions. Hardware support requires Hopper (sm_90) or newer. Older GPUs fall back to software emulation.\n";
 //    std::cout << "      -tsv : Print results as tab-separated values instead of plain text. \n";
-    std::cout << "      -verbose : More console output. Shows timings. \n";
     // std::cout << "      --printLengthPartitions : Print number of sequences per length partition in db.\n";
-    std::cout << "      -version : Print program version\n";
-    std::cout << "      -help : Print this message\n";
-    std::cout << "\n";
-
-    std::cout << "   Performance and benchmarking\n";
-    std::cout << "      -use_single <integer>	: force to use the single GPU with ID #integer\n";
-
     // std::cout << "      --prefetchDBFile : Load DB into RAM immediately at program start instead of waiting for the first access.\n";
     // std::cout << "      --uploadFull : If enough GPU memory is available to store full db, copy full DB to GPU before processing queries.\n";
     // std::cout << "      --pseudodb num length : Use a generated DB which contains `num` equal sequences of length `length`.\n";
@@ -243,25 +256,26 @@ void printHelp(int /*argc*/, char** argv){
     // std::cout << "           Select kernel types for different length partitions. Valid values: Half2, DPXs16, DPXs32, Float.\n";
     // std::cout << "           Misc option --dpx is equivalent to --singlePassType DPXs16 --manyPassType_small DPXs16 --manyPassType_large DPXs32 --overflowType DPXs32.\n";
     // std::cout << "           Default is --singlePassType Half2 --manyPassType_small Half2 --manyPassType_large Float --overflowType Float.\n";
-    std::cout << "\n";
 
-
-    // Standard options:
-	// -mat <string>	: specify the substitution matrix name (default blosum62)
-	// 	supported matrix names: dna, pam30, pam70, blosum45, blosum50, blosum62 and blosum80
-	// -query <string>	: specify the query sequence file (fasta format)
-	// -db <string>	: specify the database sequence file (blastdb format)
-	// -gapo <integer>	: specify the gap open panelty (0 ~ 255), (default 10)
-	// -gape <integer>	: specify the gap extension panelty (0 ~ 255), (default 2)
-	// -min_score <integer>	: specify the minimum score reported(default 100)
-	// -topscore_num <integer>	: specify the number of top scores reported(default 10)
-	// -use_single <integer>	: force to use the single GPU with ID #integer
-	// -out <string>	: specify the output file, (default out.csv)
-	// -reverse	: to calculate scores and alignments also for reverse complement
-	// -outfmt "<string> <string> ... <string> 	: specify the output file columns
-	// 	 supported column names: qacc, qlen, sacc, slen, score, length, nident, gaps, qstart, qend, sstart, send, positive, btop, topline, middleline, bottomline, reversed
-	// -progress_key	: search identifier used in search progress notifications
-	// -progress_pipe	: progress pipe file path
-	// -version	: print out the version
-
-}
+    // fprintf(stderr,"Usage:\n");
+    // fprintf(stderr,"./cudasw [options]\n");
+    // fprintf(stderr,"Standard options:\n");
+    // fprintf(stderr,"\t-mat <string>\t: specify the substitution matrix name (default blosum62)\n");
+    // fprintf(stderr,"\t\tsupported matrix names: dna, pam30, pam70, blosum45, blosum50, blosum62 and blosum80\n");
+    // fprintf(stderr,"\t-query <string>\t: specify the query sequence file (fasta format)\n");
+    // fprintf(stderr,"\t-db <string>\t: specify the database sequence file (blastdb format)\n");
+    // fprintf(stderr,"\t-gapo <integer>\t: specify the gap open panelty (0 ~ 255), (default %d)\n", DEFAULT_GAPO);
+    // fprintf(stderr,"\t-gape <integer>\t: specify the gap extension panelty (0 ~ 255), (default %d)\n", DEFAULT_GAPE);
+    // fprintf(stderr,"\t-min_score <integer>\t: specify the minimum score reported(default %d)\n", DEFAULT_MIN_SCORE);
+    // fprintf(stderr,"\t-topscore_num <integer>\t: specify the number of top scores reported(default %d)\n", DEFAULT_TOPSCORE_NUM);
+    // fprintf(stderr,"\t-subject_length_min <integer>\t: specify the minimum subject sequence length(default %d)\n", 0);
+    // fprintf(stderr,"\t-subject_length_max <integer>\t: specify the maximum subject sequence length(default %d)\n", MAX_SEQUENCE_LENGTH);
+    // fprintf(stderr,"\t-use_single <integer>\t: force to use the single GPU with ID #integer\n");
+    // fprintf(stderr,"\t-out <string>\t: specify the output file, (default out.csv)\n");
+    // fprintf(stderr,"\t-reverse\t: to calculate scores and alignments also for reverse complement\n");
+    // fprintf(stderr,"\t-outfmt \"<string> <string> ... <string> \t: specify the output file columns\n");
+    // fprintf(stderr,"\t\t supported column names: qacc, qlen, sacc, slen, score, length, nident, gaps, qstart, qend, sstart, send, positive, btop, topline, middleline, bottomline, reversed\n");
+    // fprintf(stderr,"\t-progress_key\t: search identifier used in search progress notifications\n");
+    // fprintf(stderr,"\t-progress_pipe\t: progress pipe file path\n");
+    // fprintf(stderr,"\t-version\t: print out the version\n");
+	
