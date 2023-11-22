@@ -45,46 +45,6 @@ void printOptions(const ProgramOptions& options){
 
 bool parseArgs(int argc, char** argv, ProgramOptions& options){
 
-    auto parseMemoryString = [](const std::string& string){
-        std::size_t result = 0;
-        if(string.length() > 0){
-            std::size_t factor = 1;
-            bool foundSuffix = false;
-            switch(string.back()){
-                case 'K':{
-                    factor = std::size_t(1) << 10; 
-                    foundSuffix = true;
-                }break;
-                case 'M':{
-                    factor = std::size_t(1) << 20;
-                    foundSuffix = true;
-                }break;
-                case 'G':{
-                    factor = std::size_t(1) << 30;
-                    foundSuffix = true;
-                }break;
-            }
-            if(foundSuffix){
-                const auto numberString = string.substr(0, string.size()-1);
-                result = factor * std::stoull(numberString);
-            }else{
-                result = std::stoull(string);
-            }
-        }else{
-            result = 0;
-        }
-        return result;
-    };
-
-    auto stringToKernelType = [&](const std::string& string){
-        if(string == "Half2") return cudasw4::KernelType::Half2;
-        if(string == "DPXs16") return cudasw4::KernelType::DPXs16;
-        if(string == "DPXs32") return cudasw4::KernelType::DPXs32;
-        if(string == "Float") return cudasw4::KernelType::Float;
-        assert(false);
-        return cudasw4::KernelType::Half2;
-    };
-
     bool gotQuery = false;
     bool gotDB = false;
     bool gotGex = false;
@@ -109,7 +69,7 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
             options.gop = - std::abs(std::atoi(argv[++i]));
             gotGop = true;
         }else if(arg == "-gex" || arg == "-gape"){
-            options.gex = std::atoi(argv[++i]);
+            options.gex = - std::abs(std::atoi(argv[++i]));
             gotGex = true;
         }else if(arg == "-query"){
             options.queryFiles.push_back(argv[++i]);
@@ -223,7 +183,6 @@ void printHelp(int /*argc*/, char** argv){
     ProgramOptions defaultoptions;
 
     std::cout << "Usage: " << argv[0] << " [options]\n";
-    std::cout << "The GPUs to use are set via CUDA_VISIBLE_DEVICES environment variable.\n";
     std::cout << "Options: \n";
 
     std::cout << "   Mandatory\n";
@@ -232,9 +191,11 @@ void printHelp(int /*argc*/, char** argv){
     std::cout << "\n";
 
     std::cout << "   Scoring\n";
-    std::cout << "      -top val : Output the val best scores. Default val = " << defaultoptions.numTopOutputs << "\n";
-    std::cout << "      -gop val : Gap open score. Overwrites our matrix-dependent default score.\n";
-    std::cout << "      -gex val : Gap extend score. Overwrites our matrix-dependent default score.\n";
+    std::cout << "      -min_score <integer>	: specify the minimum score reported(default 100)\n";
+
+    std::cout << "      -top or -topscore_num val : Output the val best scores. Default val = " << defaultoptions.numTopOutputs << "\n";
+    std::cout << "      -gop or -gapo val : Gap open score. Overwrites our matrix-dependent default score.\n";
+    std::cout << "      -gex or -gape val : Gap extend score. Overwrites our matrix-dependent default score.\n";
     #ifdef CAN_USE_FULL_BLOSUM
     std::cout << "      -mat val: Set substitution matrix. Supported values: dna, nuc44, pam30, pam70, pam30_20, pam70_20,\n";
     std::cout << "                 blosum45, blosum50, blosum62, blosum80, blosum45_20, blosum50_20, blosum62_20, blosum80_20.\n";
@@ -243,6 +204,8 @@ void printHelp(int /*argc*/, char** argv){
     std::cout << "      -mat val: Set substitution matrix. Supported values: dna, nuc44, pam30, pam70, blosum45, blosum50, blosum62, blosum80. "
                         "Default: " << "blosum62" << "\n";
     #endif
+    std::cout << "      -reverse	: to calculate scores and alignments also for reverse complement\n";
+
     std::cout << "\n";
 
     // std::cout << "   Memory\n";
@@ -251,18 +214,28 @@ void printHelp(int /*argc*/, char** argv){
     // std::cout << "      --maxBatchBytes val : Process DB in batches of at most val bytes. Can use suffix K,M,G. Default val = " << defaultoptions.maxBatchBytes << "\n";
     // std::cout << "      --maxBatchSequences val : Process DB in batches of at most val sequences. Default val = " << defaultoptions.maxBatchSequences << "\n";
     // std::cout << "\n";
-    
-    std::cout << "   Misc\n";
-    std::cout << "      -dpx : Use DPX instructions. Hardware support requires Hopper (sm_90) or newer. Older GPUs fall back to software emulation.\n";
+
+    std::cout << "   Output options\n";
     std::cout << "      -out : Result output file. Parent directory must exist. Default: console output (/dev/stdout)\n";
-    std::cout << "      -tsv : Print results as tab-separated values instead of plain text. \n";
+    std::cout << "      -outfmt \"<string> <string> ... <string>\" 	: specify the output file columns\n";
+    std::cout << "       supported column names: qacc, qlen, sacc, slen, score, length, nident, gaps, qstart, qend, sstart,\n"; 
+    std::cout << "                               send, positive, btop, topline, middleline, bottomline, reversed\n";
+    std::cout << "      -progress_key	: search identifier used in search progress notifications\n";
+    std::cout << "      -progress_pipe	: progress pipe file path\n";
+    std::cout << "\n";
+
+    std::cout << "   Misc\n";
+//    std::cout << "      -dpx : Use DPX instructions. Hardware support requires Hopper (sm_90) or newer. Older GPUs fall back to software emulation.\n";
+//    std::cout << "      -tsv : Print results as tab-separated values instead of plain text. \n";
     std::cout << "      -verbose : More console output. Shows timings. \n";
     // std::cout << "      --printLengthPartitions : Print number of sequences per length partition in db.\n";
     std::cout << "      -version : Print program version\n";
     std::cout << "      -help : Print this message\n";
     std::cout << "\n";
 
-    // std::cout << "   Performance and benchmarking\n";
+    std::cout << "   Performance and benchmarking\n";
+    std::cout << "      -use_single <integer>	: force to use the single GPU with ID #integer\n";
+
     // std::cout << "      --prefetchDBFile : Load DB into RAM immediately at program start instead of waiting for the first access.\n";
     // std::cout << "      --uploadFull : If enough GPU memory is available to store full db, copy full DB to GPU before processing queries.\n";
     // std::cout << "      --pseudodb num length : Use a generated DB which contains `num` equal sequences of length `length`.\n";
