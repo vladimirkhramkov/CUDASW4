@@ -111,12 +111,11 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
             gotDPX = true;
         }else if(arg == "-tsv"){
             options.outputMode = ProgramOptions::OutputMode::TSV;
-        }else if(arg == "-outfmt"){
-            // qacc, qlen, sacc, slen, score, length, nident, gaps, qstart, qend, sstart, send, positive, btop, topline, middleline, bottomline, reversed
-            // options.outputFormat = argv[++i];
         }else if(arg == "-out"){
             options.outputfile = argv[++i];
         }else if(arg == "-outfmt") {
+            // qacc, qlen, sacc, slen, score, length, nident, gaps, qstart, qend, sstart, send, positive, btop, topline, middleline, bottomline, reversed
+            // options.outputFormat = argv[++i];
         	std::stringstream ss(argv[++i]);
         	std::string columnName;
         	const int availableColumnNamesCount = 19;
