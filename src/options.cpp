@@ -5,6 +5,7 @@
 
 #include <string>
 #include <iostream>
+#include <sstream>
 
 void printOptions(const ProgramOptions& options){
     std::cout << "Selected options:\n";
@@ -115,6 +116,22 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
             // options.outputFormat = argv[++i];
         }else if(arg == "-out"){
             options.outputfile = argv[++i];
+        }else if(arg == "-outfmt") {
+        	std::stringstream ss(argv[++i]);
+        	std::string columnName;
+        	const int availableColumnNamesCount = 19;
+        	std::string availableColumnNames[availableColumnNamesCount] = {"qacc", "qlen", "sacc", "slen", "score", "length", "nident",
+																	  "gaps", "qstart", "qend", "sstart", "send", "positive", "btop",
+																	  "topline", "middleline", "bottomline", "reversed", "qcovs"};
+        	while (ss >> columnName) {
+        		bool isSupported = false;
+        		for (int i = 0; i < availableColumnNamesCount; ++i) if (columnName == availableColumnNames[i]) { isSupported = true; break; }
+        		if (!isSupported) {
+        			std::cout << "Unknown outfmt option " << columnName << std::endl;
+        			return false;
+        		}
+        		options.csvColumns.push_back(columnName);
+        	}        
         }else if(arg == "-progress_key"){
             // search identifier used in search progress notifications
             options.progressKey = std::string(argv[++i]);

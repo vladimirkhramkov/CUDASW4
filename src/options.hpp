@@ -45,6 +45,8 @@ struct ProgramOptions{
     std::string progressKey = "";
     std::string progressPipePath = "";
 
+    std::vector<std::string> csvColumns;
+
     std::vector<std::string> queryFiles;
 
     std::string outputModeString() const{
