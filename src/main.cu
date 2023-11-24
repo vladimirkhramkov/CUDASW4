@@ -43,43 +43,99 @@ void printScanResultPlain(std::ostream& os, const cudasw4::ScanResult& scanResul
     }
 }
 
-void printTSVHeader(std::ostream& os){
-    constexpr char sep = '\t';
-
-    os << "Query number" << sep 
-        << "Query length" << sep 
-        << "Query header" << sep
-        << "Result number" << sep
-        << "Result score" << sep
-        << "Reference length" << sep
-        << "Reference header" << sep
-        << "Reference ID in DB" << "\n";
-}
-
-void printScanResultTSV(
+void printScanResultCSV(
     std::ostream& os, 
     const cudasw4::ScanResult& scanResult, 
     const cudasw4::CudaSW4& cudaSW4, 
+    const ProgramOptions& options,
     int64_t queryId,
     cudasw4::SequenceLengthT queryLength,
     std::string_view queryHeader
 ){
-    constexpr char sep = '\t';
+    constexpr char sep = ',';
 
     const int n = scanResult.scores.size();
     for(int i = 0; i < n; i++){
         const auto referenceId = scanResult.referenceIds[i];
         
-        os << queryId << sep 
-            << queryLength << sep
-            << queryHeader << sep
-            << i << sep
-            << scanResult.scores[i] << sep
-            << cudaSW4.getReferenceLength(referenceId) << sep
-            << cudaSW4.getReferenceHeader(referenceId) << sep
-            << referenceId << "\n";
+        // os << queryId << sep 
+        //     << queryLength << sep
+        //     << queryHeader << sep
+        //     << i << sep
+        //     << scanResult.scores[i] << sep
+        //     << cudaSW4.getReferenceLength(referenceId) << sep
+        //     << cudaSW4.getReferenceHeader(referenceId) << sep
+        //     << referenceId << "\n";
 
         //std::cout << " Sequence " << cudaSW4.getReferenceSequence(referenceId) << "\n";
+
+        for (unsigned int paramIndex = 0; paramIndex < options.csvColumns.size(); ++paramIndex) {
+            std::string parameter = options.csvColumns[paramIndex];
+            if (paramIndex)
+                os << sep;
+
+            if (parameter == "qacc") {
+                os << queryHeader || queryId; //initialQueries[answerEntry.queryIndex].first;
+            } else if (parameter == "qlen") {
+                os << queryLength; //initialQueries[answerEntry.queryIndex].second.length();
+            } else if (parameter == "sacc") {
+                os << cudaSW4.getReferenceHeader(referenceId);//answerEntry.getSacc();
+            } else if (parameter == "slen") {
+                os << cudaSW4.getReferenceLength(referenceId); //answerEntry.getSlen();
+            } else if (parameter == "score") {
+                os << scanResult.scores[i]; //answerEntry.getScore();
+            } else if (parameter == "length") {
+                // os << stringAlignment[0].length();
+            } else if (parameter == "nident") {
+                // int matches = 0;
+                // for (int i = 0; i < stringAlignment[0].length(); ++i)
+                //     if (stringAlignment[0][i] != '-' && (stringAlignment[0][i] == stringAlignment[2][i] || stringAlignment[1][i] == '|' && nucleotideSearch))
+                //         ++matches;
+                // os << matches;
+            } else if (parameter == "gaps") {
+                // int gaps = 0;
+                // for (int i = 0; i < stringAlignment[0].length(); ++i)
+                //     gaps += (stringAlignment[0][i] == '-')
+                //             + (stringAlignment[2][i] == '-');
+                // os << gaps;
+            } else if (parameter == "qstart") {
+                // os << answerEntry.getQstart() + 1;
+            } else if (parameter == "qend") {
+                // os << answerEntry.getQend() + 1;
+            } else if (parameter == "sstart") {
+                // os << answerEntry.getSstart() + 1;
+            } else if (parameter == "send") {
+                // os << answerEntry.getSend() + 1;
+            } else if (parameter == "positive") {
+                // int positiveMatches = 0;
+                // for (int i = 0; i < stringAlignment[0].length(); ++i) {
+                //     if (stringAlignment[0][i] != '-'
+                //             && stringAlignment[2][i] != '-') {
+                //         positiveMatches +=
+                //                 scoringMatrix[CFastaFile::amino_acids_trans[stringAlignment[0][i]]][CFastaFile::amino_acids_trans[stringAlignment[2][i]]]
+                //                         > 0;
+                //     }
+                // }
+                // os << positiveMatches;
+            } else if (parameter == "btop") {
+                // os << BTOP;
+            } else if (parameter == "topline") {
+                // os << stringAlignment[0];
+            } else if (parameter == "middleline") {
+                // os << stringAlignment[1];
+            } else if (parameter == "bottomline") {
+                // os << stringAlignment[2];
+            } else if (parameter == "reversed") {
+                // os << answerEntry.reversed;
+            } else if (parameter == "qcovs") {
+                // int coverageLength = queryCoverageLength[answerEntry.sequenceName];
+                // os << fixed << setprecision(2) << 100.0 * coverageLength / query.length();
+                // rounded percent
+                //os << (200 * coverageLength + query.length()) / (2 * query.length());
+            }
+        }
+        os << "\n";
+
     }
 }
 
@@ -148,10 +204,6 @@ int main(int argc, char* argv[])
     std::ofstream outputfile(options.outputfile);
     if(!bool(outputfile)){
         throw std::runtime_error("Cannot open file " + options.outputfile);
-    }
-
-    if(options.outputMode == ProgramOptions::OutputMode::TSV){
-        printTSVHeader(outputfile);
     }
 
     int progressFileDescriptor = options.progressPipePath.length() == 0 ? -1 : open(options.progressPipePath.c_str(), O_WRONLY | O_NONBLOCK);
@@ -232,13 +284,9 @@ int main(int argc, char* argv[])
 
             if(options.numTopOutputs > 0){
                 if(options.outputMode == ProgramOptions::OutputMode::Plain){
-                    outputfile << "Query " << query_num << ", header" <<  header
-                        << ", length " << sequence.size()
-                        << ", num overflows " << scanResult.stats.numOverflows << "\n";
-
                     printScanResultPlain(outputfile, scanResult, cudaSW4);
                 }else{
-                    printScanResultTSV(outputfile, scanResult, cudaSW4, query_num, sequence.size(), header);
+                    printScanResultCSV(outputfile, scanResult, cudaSW4, options, query_num, sequence.size(), header);
                 }
                 outputfile.flush();
             }

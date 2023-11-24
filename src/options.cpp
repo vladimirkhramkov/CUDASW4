@@ -109,8 +109,8 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
         }else if(arg == "-dpx"){
             // use DPX instructions (Hopper GPU cards: H100)
             gotDPX = true;
-        }else if(arg == "-tsv"){
-            options.outputMode = ProgramOptions::OutputMode::TSV;
+        }else if(arg == "-plain"){
+            options.outputMode = ProgramOptions::OutputMode::Plain;
         }else if(arg == "-out"){
             options.outputfile = argv[++i];
         }else if(arg == "-outfmt") {
