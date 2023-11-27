@@ -49,7 +49,7 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
         }else if(arg == "-verbose"){
             options.verbose = true;            
         }else if(arg == "-min_score"){
-            // options.minScore = std::atoi(argv[++i]);
+            options.minScore = std::atoi(argv[++i]);
         }else if(arg == "-top" || arg == "-topscore_num"){
             options.numTopOutputs = std::atoi(argv[++i]);
         }else if(arg == "-gop" || arg == "-gapo"){
@@ -195,7 +195,7 @@ void printHelp(int /*argc*/, char** argv){
     std::cout << "\n";
 
     std::cout << "   Scoring\n";
-    std::cout << "      -min_score val : Specify the minimum score reported. Default val = 100\n";
+    std::cout << "      -min_score val : Specify the minimum score reported. Default val = 1\n";
 
     std::cout << "      -top or -topscore_num val : Output the val best scores. Default val = " << defaultoptions.numTopOutputs << "\n";
     std::cout << "      -gop or -gapo val : Gap open score. Overwrites our matrix-dependent default score.\n";
