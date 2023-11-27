@@ -28,9 +28,16 @@ std::vector<std::string> split(const std::string& str, char c){
 	return result;
 }
 
-void printScanResultPlain(std::ostream& os, const cudasw4::ScanResult& scanResult, const cudasw4::CudaSW4& cudaSW4){
+void printScanResultPlain(
+    std::ostream& os, 
+    const cudasw4::ScanResult& scanResult, 
+    const cudasw4::CudaSW4& cudaSW4, 
+    const ProgramOptions& options
+){
     const int n = scanResult.scores.size();
     for(int i = 0; i < n; i++){
+        if (scanResult.scores[i] < options.minScore) continue;
+        
         const auto referenceId = scanResult.referenceIds[i];
         os << "Result " << i << ".";
         os << " Score: " << scanResult.scores[i] << ".";
@@ -56,6 +63,8 @@ void printScanResultCSV(
 
     const int n = scanResult.scores.size();
     for(int i = 0; i < n; i++){
+        if (scanResult.scores[i] < options.minScore) continue;
+
         const auto referenceId = scanResult.referenceIds[i];
         
         // os << queryId << sep 
@@ -284,7 +293,7 @@ int main(int argc, char* argv[])
 
             if(options.numTopOutputs > 0){
                 if(options.outputMode == ProgramOptions::OutputMode::Plain){
-                    printScanResultPlain(outputfile, scanResult, cudaSW4);
+                    printScanResultPlain(outputfile, scanResult, cudaSW4, options);
                 }else{
                     printScanResultCSV(outputfile, scanResult, cudaSW4, options, query_num, sequence.size(), header);
                 }
