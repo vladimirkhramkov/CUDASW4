@@ -33,7 +33,7 @@ COMPILE = $(COMPILER) $(NVCC_FLAGS) $(DIALECT) $(OPTIMIZATION) $(WARNINGS) -c $<
 
 
 # link object files into executable
-$(ARTIFACT): $(BUILDDIR)/main.o $(BUILDDIR)/sequence_io.o $(BUILDDIR)/dbdata.o $(BUILDDIR)/options.o $(BUILDDIR)/sub_matrix.o $(BUILDDIR)/half2_kernel_instantiations.o $(BUILDDIR)/float_kernel_instantiations.o $(BUILDDIR)/dpx_s32_kernel_instantiations.o $(BUILDDIR)/dpx_s16_kernel_instantiations.o
+$(ARTIFACT): $(BUILDDIR)/main.o $(BUILDDIR)/sequence_io.o $(BUILDDIR)/dbdata.o $(BUILDDIR)/options.o $(BUILDDIR)/sub_matrix.o $(BUILDDIR)/half2_kernel_instantiations.o $(BUILDDIR)/float_kernel_instantiations.o $(BUILDDIR)/dpx_s32_kernel_instantiations.o $(BUILDDIR)/dpx_s16_kernel_instantiations.o $(BUILDDIR)/reverse.o
 	$(COMPILER) $^ -o $(ARTIFACT) $(LDFLAGS)
 
 $(MAKEDB): $(BUILDDIR)/makedb.o $(BUILDDIR)/sequence_io.o $(BUILDDIR)/dbdata.o
@@ -56,6 +56,9 @@ $(BUILDDIR)/options.o : src/options.cpp src/options.hpp src/types.hpp
 	$(COMPILE)
 
 $(BUILDDIR)/sub_matrix.o : src/sub_matrix.cu src/sub_matrix.hpp
+	$(COMPILE)
+
+$(BUILDDIR)/reverse.o : src/reverse.cpp src/reverse.hpp
 	$(COMPILE)
 
 $(BUILDDIR)/half2_kernel_instantiations.o: src/half2_kernel_instantiations.cu src/half2_kernels.cuh

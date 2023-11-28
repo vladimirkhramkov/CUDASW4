@@ -13,7 +13,7 @@
 #include "dbdata.hpp"
 #include "cudasw4.cuh"
 #include "config.hpp"
-
+#include "reverse.hpp"
 
 std::vector<std::string> split(const std::string& str, char c){
 	std::vector<std::string> result;
@@ -37,7 +37,7 @@ void printScanResultPlain(
     const int n = scanResult.scores.size();
     for(int i = 0; i < n; i++){
         if (scanResult.scores[i] < options.minScore) continue;
-        
+
         const auto referenceId = scanResult.referenceIds[i];
         os << "Result " << i << ".";
         os << " Score: " << scanResult.scores[i] << ".";
@@ -268,6 +268,8 @@ int main(int argc, char* argv[])
     if(options.loadFullDBToGpu){
         cudaSW4.prefetchFullDBToGpus();
     }
+
+    //std::string reverseComplement = getReverseComplement(dna);
 
     //non interactive mode
     for(const auto& queryFile : options.queryFiles){
