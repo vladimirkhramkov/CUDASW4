@@ -6,6 +6,21 @@
 #include <iostream>
 
 
+namespace cudasw4 {
+    
+    struct QuerySequence {
+        std::string header;
+        std::string sequence;
+
+        // Default constructor
+        QuerySequence() : header(""), sequence("") {}
+
+        // Constructor with parameters
+        QuerySequence(const std::string& h, const std::string& s) : header(h), sequence(s) {}
+    };  
+
+}
+
 struct ProgramOptions{
     enum class OutputMode{
         Plain,
@@ -19,6 +34,8 @@ struct ProgramOptions{
     bool printLengthPartitions = false;
     bool verbose = false;
     bool prefetchDBFile = false;
+    bool reverseComplement = false;
+
     int numTopOutputs = 10;
     int gop = -11;
     int gex = -1;
@@ -49,7 +66,7 @@ struct ProgramOptions{
 
     std::vector<std::string> csvColumns;
 
-    std::vector<std::string> queryFiles;
+    std::vector<cudasw4::QuerySequence> queries;
 
     std::string outputModeString() const{
         switch(outputMode){

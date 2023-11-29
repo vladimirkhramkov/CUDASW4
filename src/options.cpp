@@ -2,6 +2,7 @@
 #include "types.hpp"
 #include "hpc_helpers/all_helpers.cuh"
 #include "version.hpp"
+#include "kseqpp/kseqpp.hpp"
 
 #include <string>
 #include <iostream>
@@ -14,8 +15,8 @@ void printOptions(const ProgramOptions& options){
     std::cout << "gop: " << options.gop << "\n";
     std::cout << "gex: " << options.gex << "\n";
 
-    for(size_t i = 0; i < options.queryFiles.size(); i++){
-        std::cout << "queryFile " << i  << " : " << options.queryFiles[i] << "\n";
+    for(size_t i = 0; i < options.queries.size(); i++){
+        std::cout << "query " << i  << " : " << options.queries[i].header << "\n";
     }
     std::cout << "sequence type: " << to_string(options.sequenceType) << "\n";
     #ifdef CAN_USE_FULL_BLOSUM
@@ -23,11 +24,12 @@ void printOptions(const ProgramOptions& options){
     #else
     std::cout << "matrix: " << to_string_nodim(options.subMatrixType) << "\n";
     #endif
+    std::cout << "reverse complement: " << options.reverseComplement << "\n";
 
-    std::cout << "Using db file: " << options.dbPrefix << "\n";
+    std::cout << "using db file: " << options.dbPrefix << "\n";
 
-    std::cout << "Output mode: " << options.outputModeString() << "\n";
-    std::cout << "Output file: " << options.outputfile << "\n";
+    std::cout << "output mode: " << options.outputModeString() << "\n";
+    std::cout << "output file: " << options.outputfile << "\n";
 }
 
 bool parseArgs(int argc, char** argv, ProgramOptions& options){
@@ -38,7 +40,7 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
     bool gotGop = false;
     bool gotDPX = false;
 
-    options.queryFiles.clear();
+    options.queries.clear();
 
     for(int i = 1; i < argc; i++){
         const std::string arg = argv[i];
@@ -59,8 +61,15 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
             options.gex = - std::abs(std::atoi(argv[++i]));
             gotGex = true;
         }else if(arg == "-query"){
-            options.queryFiles.push_back(argv[++i]);
-            gotQuery = true;
+            kseqpp::KseqPP reader(argv[++i]);
+
+            while(reader.next() >= 0){
+                cudasw4::QuerySequence query(reader.getCurrentHeader(), reader.getCurrentSequence());
+
+                options.queries.push_back(query);
+            }
+
+            if (options.queries.size() > 0) gotQuery = true;
         }else if(arg == "-db"){
             options.dbPrefix = argv[++i];
             gotDB = true;
@@ -105,7 +114,7 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
             // use single GPU
         }else if(arg == "-reverse"){
             // calculate scores and alignments also for reverse complement
-            // options.reverseComplement = true;
+            options.reverseComplement = true;
         }else if(arg == "-dpx"){
             // use DPX instructions (Hopper GPU cards: H100)
             gotDPX = true;

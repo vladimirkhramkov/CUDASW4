@@ -7,8 +7,8 @@
 #include "hpc_helpers/all_helpers.cuh"
 #include "hpc_helpers/peer_access.cuh"
 
-#include "kseqpp/kseqpp.hpp"
-#include "sequence_io.h"
+// #include "kseqpp/kseqpp.hpp"
+// #include "sequence_io.h"
 #include "options.hpp"
 #include "dbdata.hpp"
 #include "cudasw4.cuh"
@@ -165,9 +165,21 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    if(!parseSuccess || options.help){
+    if(!parseSuccess || options.help) {
         printHelp(argc, argv);
         return 0;
+    }
+
+    if (options.reverseComplement) {
+        if(options.sequenceType == cudasw4::SequenceType::Nucleotide) {
+            const size_t numQueries = options.queries.size();
+            for (size_t i = 0; i < numQueries; i++) {
+                std::string reverseComplement = getReverseComplement(options.queries[i].sequence);
+                options.queries.push_back(cudasw4::QuerySequence(options.queries[i].header + "_reversed", reverseComplement));
+            }
+        } else {
+            options.reverseComplement = false;
+        }
     }
 
     printOptions(options);
@@ -269,41 +281,33 @@ int main(int argc, char* argv[])
         cudaSW4.prefetchFullDBToGpus();
     }
 
-    //std::string reverseComplement = getReverseComplement(dna);
-
-    //non interactive mode
-    for(const auto& queryFile : options.queryFiles){
-        std::cout << "Processing query file " << queryFile << "\n";
-
-        kseqpp::KseqPP reader(queryFile);
-        int64_t query_num = 0;
+    int64_t query_num = 0;
+    for(const auto& query : options.queries){
 
         cudaSW4.totalTimerStart();
 
-        while(reader.next() >= 0){
-            std::cout << "Processing query " << query_num << " ... ";
-            std::cout.flush();
-            const std::string& header = reader.getCurrentHeader();
-            const std::string& sequence = reader.getCurrentSequence();
+        std::cout << "Processing query " << query_num << " ... ";
+        std::cout.flush();
+        const std::string& header   = query.header;
+        const std::string& sequence = query.sequence;
 
-            ScanResult scanResult = cudaSW4.scan(sequence.data(), sequence.size());
-            if(options.verbose){
-                std::cout << "Done. Scan time: " << scanResult.stats.seconds << " s, " << scanResult.stats.gcups << " GCUPS\n";
-            }else{
-                std::cout << "Done.\n";
-            }
-
-            if(options.numTopOutputs > 0){
-                if(options.outputMode == ProgramOptions::OutputMode::Plain){
-                    printScanResultPlain(outputfile, scanResult, cudaSW4, options);
-                }else{
-                    printScanResultCSV(outputfile, scanResult, cudaSW4, options, query_num, sequence.size(), header);
-                }
-                outputfile.flush();
-            }
-
-            query_num++;
+        ScanResult scanResult = cudaSW4.scan(sequence.data(), sequence.size());
+        if(options.verbose){
+            std::cout << "Done. Scan time: " << scanResult.stats.seconds << " s, " << scanResult.stats.gcups << " GCUPS\n";
+        }else{
+            std::cout << "Done.\n";
         }
+
+        if(options.numTopOutputs > 0){
+            if(options.outputMode == ProgramOptions::OutputMode::Plain){
+                printScanResultPlain(outputfile, scanResult, cudaSW4, options);
+            }else{
+                printScanResultCSV(outputfile, scanResult, cudaSW4, options, query_num, sequence.size(), header);
+            }
+            outputfile.flush();
+        }
+
+        query_num++;
 
         auto totalBenchmarkStats = cudaSW4.totalTimerStop();
         if(options.verbose){
