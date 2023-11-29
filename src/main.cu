@@ -15,25 +15,12 @@
 #include "config.hpp"
 #include "reverse.hpp"
 
-std::vector<std::string> split(const std::string& str, char c){
-	std::vector<std::string> result;
-
-	std::stringstream ss(str);
-	std::string s;
-
-	while (std::getline(ss, s, c)) {
-		result.emplace_back(s);
-	}
-
-	return result;
-}
-
 void printScanResultPlain(
     std::ostream& os, 
     const cudasw4::ScanResult& scanResult, 
     const cudasw4::CudaSW4& cudaSW4, 
     const ProgramOptions& options
-){
+) {
     const int n = scanResult.scores.size();
     for(int i = 0; i < n; i++){
         if (scanResult.scores[i] < options.minScore) continue;
@@ -46,7 +33,6 @@ void printScanResultPlain(
         os << " referenceId " << referenceId;
         os << "\n";
         //std::cout << " Sequence " << cudaSW4.getReferenceSequence(referenceId) << "\n";
-
     }
 }
 
@@ -58,7 +44,7 @@ void printScanResultCSV(
     int64_t queryId,
     cudasw4::SequenceLengthT queryLength,
     std::string_view queryHeader
-){
+) {
     constexpr char sep = ',';
 
     const int n = scanResult.scores.size();
@@ -67,17 +53,6 @@ void printScanResultCSV(
 
         const auto referenceId = scanResult.referenceIds[i];
         
-        // os << queryId << sep 
-        //     << queryLength << sep
-        //     << queryHeader << sep
-        //     << i << sep
-        //     << scanResult.scores[i] << sep
-        //     << cudaSW4.getReferenceLength(referenceId) << sep
-        //     << cudaSW4.getReferenceHeader(referenceId) << sep
-        //     << referenceId << "\n";
-
-        //std::cout << " Sequence " << cudaSW4.getReferenceSequence(referenceId) << "\n";
-
         for (unsigned int paramIndex = 0; paramIndex < options.csvColumns.size(); ++paramIndex) {
             std::string parameter = options.csvColumns[paramIndex];
             if (paramIndex)
@@ -147,13 +122,6 @@ void printScanResultCSV(
 
     }
 }
-
-struct BatchOfQueries{
-    std::vector<char> chars;               
-    std::vector<std::size_t> offsets;  
-    std::vector<cudasw4::SequenceLengthT> lengths;  
-    std::vector<std::string> headers;  
-};
 
 int main(int argc, char* argv[])
 {
@@ -250,7 +218,7 @@ int main(int argc, char* argv[])
             constexpr bool writeAccess = false;
             const bool prefetchSeq = options.prefetchDBFile;
 
-            auto fullDB_tmp = std::make_shared<cudasw4::DB>(cudasw4::loadDB(options.dbPrefix, writeAccess, prefetchSeq));
+            auto fullDB_tmp = std::make_shared<cudasw4::DB>(cudasw4::loadDB(options.databases[0], writeAccess, prefetchSeq));
             if(options.verbose){
                 timer_read_db.print();
             }
@@ -261,7 +229,7 @@ int main(int argc, char* argv[])
                 std::cout << "Failed to map db files. Using fallback db. Error message: " << ex.what() << "\n";
             }
             helpers::CpuTimer timer_read_db("Read DB");
-            auto fullDB_tmp = std::make_shared<cudasw4::DBWithVectors>(cudasw4::loadDBWithVectors(options.dbPrefix));
+            auto fullDB_tmp = std::make_shared<cudasw4::DBWithVectors>(cudasw4::loadDBWithVectors(options.databases[0]));
             if(options.verbose){
                 timer_read_db.print();
             }
@@ -281,7 +249,7 @@ int main(int argc, char* argv[])
         cudaSW4.prefetchFullDBToGpus();
     }
 
-    int64_t query_num = 0;
+    size_t query_num = 0;
     for(const auto& query : options.queries){
 
         cudaSW4.totalTimerStart();
@@ -291,7 +259,7 @@ int main(int argc, char* argv[])
         const std::string& header   = query.header;
         const std::string& sequence = query.sequence;
 
-        ScanResult scanResult = cudaSW4.scan(sequence.data(), sequence.size());
+        ScanResult scanResult = cudaSW4.scan(query_num, options.queries.size(), sequence.data(), sequence.size());
         if(options.verbose){
             std::cout << "Done. Scan time: " << scanResult.stats.seconds << " s, " << scanResult.stats.gcups << " GCUPS\n";
         }else{

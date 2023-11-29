@@ -59,7 +59,7 @@ struct ProgramOptions{
     size_t maxGpuMem = std::numeric_limits<size_t>::max();
 
     std::string outputfile = "/dev/stdout";
-    std::string dbPrefix;
+    std::vector<std::string> databases;
 
     std::string progressKey = "";
     std::string progressPipePath = "";

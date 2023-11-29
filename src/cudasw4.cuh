@@ -692,7 +692,7 @@ namespace cudasw4{
         }
 
         // used in main.cu
-        ScanResult scan(const char* query, SequenceLengthT queryLength){
+        ScanResult scan(const size_t query_num, const size_t queries_count, const char* query, SequenceLengthT queryLength) {
             if(!dbIsReady){
                 throw std::runtime_error("DB not set correctly");
             }
@@ -706,7 +706,7 @@ namespace cudasw4{
 
             setQuery(query, queryLength);
 
-            scanDatabaseForQuery();
+            scanDatabaseForQuery(query_num, queries_count);
 
             scanTimer->stop();
 
@@ -1216,7 +1216,7 @@ namespace cudasw4{
         }
 
         // used here
-        void scanDatabaseForQuery(){
+        void scanDatabaseForQuery(const size_t query_num, const size_t queries_count){
             const int numGpus = deviceIds.size();
             const int masterDeviceId = deviceIds[0];
             const auto& masterStream1 = gpuStreams[0];
@@ -1242,7 +1242,7 @@ namespace cudasw4{
                 cudaStreamWaitEvent(gpuStreams[gpu], masterevent1, 0); CUERR;
             }
 
-            processQueryOnGpus();
+            processQueryOnGpus(query_num, queries_count);
 
             for(int gpu = 0; gpu < numGpus; gpu++){
                 cudaSetDevice(deviceIds[gpu]); CUERR;
@@ -1340,7 +1340,7 @@ namespace cudasw4{
         }
 
         // used here
-        void processQueryOnGpus(){
+        void processQueryOnGpus(const size_t query_num, const size_t queries_count) {
 
             const std::vector<std::vector<DBdataView>>& dbPartitionsPerGpu = subPartitionsForGpus;
             const std::vector<std::vector<DeviceBatchCopyToPinnedPlan>>& batchPlansPerGpu_batched = batchPlans;
@@ -1356,7 +1356,7 @@ namespace cudasw4{
             size_t totalNumberOfSequencesToProcess = std::reduce(numberOfSequencesPerGpu.begin(), numberOfSequencesPerGpu.end());
             
             size_t totalNumberOfProcessedSequences = 0;
-   			int oldPercent = totalNumberOfProcessedSequences * 100LL / totalNumberOfSequencesToProcess;
+            int oldPercent = 100LL * ( (1.0 / queries_count) * (query_num + 1.0 * totalNumberOfProcessedSequences / totalNumberOfSequencesToProcess) );
 			int newPercent = oldPercent;
 
             dprintf(progressFileDescription, "%s#%d\n", progressKey.c_str(), newPercent);
@@ -2101,7 +2101,7 @@ namespace cudasw4{
         
                         totalNumberOfProcessedSequences += plan.usedSeq;
 
-                        newPercent = totalNumberOfProcessedSequences * 100LL / totalNumberOfSequencesToProcess;
+                        newPercent = 100LL * ( (1.0 / queries_count) * (query_num + 1.0 * totalNumberOfProcessedSequences / totalNumberOfSequencesToProcess) );
                         if (newPercent > oldPercent) {
                             dprintf(progressFileDescription, "%s#%d\n", progressKey.c_str(), newPercent);
                             oldPercent = newPercent;

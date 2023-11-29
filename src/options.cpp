@@ -7,8 +7,11 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <numeric> // For std::accumulate
 
-void printOptions(const ProgramOptions& options){
+void printOptions(const ProgramOptions& options) {
+    std::string delimiter = " ";
+
     std::cout << "Selected options:\n";
     std::cout << "verbose: " << options.verbose << "\n";
     std::cout << "numTopOutputs: " << options.numTopOutputs << "\n";
@@ -26,13 +29,19 @@ void printOptions(const ProgramOptions& options){
     #endif
     std::cout << "reverse complement: " << options.reverseComplement << "\n";
 
-    std::cout << "using db file: " << options.dbPrefix << "\n";
+    std::cout << "using db file: " << std::accumulate(
+        std::next(options.databases.begin()), options.databases.end(),
+        options.databases[0], // Start with the first element
+        [&delimiter](const std::string &a, const std::string &b) {
+            return a + delimiter + b;
+        }
+    ) << "\n";
 
     std::cout << "output mode: " << options.outputModeString() << "\n";
     std::cout << "output file: " << options.outputfile << "\n";
 }
 
-bool parseArgs(int argc, char** argv, ProgramOptions& options){
+bool parseArgs(int argc, char** argv, ProgramOptions& options) {
 
     bool gotQuery = false;
     bool gotDB = false;
@@ -42,38 +51,55 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
 
     options.queries.clear();
 
-    for(int i = 1; i < argc; i++){
+    for(int i = 1; i < argc; i++) {
         const std::string arg = argv[i];
-        if(arg == "-help"){
+        if(arg == "-help") {
             options.help = true;
-        }else if(arg == "-version"){
+        } else if(arg == "-version") {
             options.version = true;
-        }else if(arg == "-verbose"){
+        } else if(arg == "-verbose") {
             options.verbose = true;            
-        }else if(arg == "-min_score"){
+        } else if(arg == "-min_score") {
             options.minScore = std::atoi(argv[++i]);
-        }else if(arg == "-top" || arg == "-topscore_num"){
+        } else if(arg == "-top" || arg == "-topscore_num") {
             options.numTopOutputs = std::atoi(argv[++i]);
-        }else if(arg == "-gop" || arg == "-gapo"){
+        } else if(arg == "-gop" || arg == "-gapo") {
             options.gop = - std::abs(std::atoi(argv[++i]));
             gotGop = true;
-        }else if(arg == "-gex" || arg == "-gape"){
+        } else if(arg == "-gex" || arg == "-gape") {
             options.gex = - std::abs(std::atoi(argv[++i]));
             gotGex = true;
-        }else if(arg == "-query"){
+        } else if(arg == "-query") {
             kseqpp::KseqPP reader(argv[++i]);
 
-            while(reader.next() >= 0){
+            while(reader.next() >= 0) {
                 cudasw4::QuerySequence query(reader.getCurrentHeader(), reader.getCurrentSequence());
 
                 options.queries.push_back(query);
             }
 
             if (options.queries.size() > 0) gotQuery = true;
-        }else if(arg == "-db"){
-            options.dbPrefix = argv[++i];
-            gotDB = true;
-        }else if(arg == "-mat"){
+        } else if(arg == "-db") {
+            options.databases.clear();
+            std::string names = "";
+
+            for (size_t j = 0; j < strlen(argv[i + 1]); j++) {
+                if (argv[i+1][j] == ' ') {
+                    if (names != "")
+                        options.databases.push_back(names);
+
+                    names = "";
+                } else
+                    names += argv[i + 1][j];
+            }
+
+            if (names.size() > 0)
+                options.databases.push_back(names);
+
+            i++;
+
+            if (options.databases.size() > 0) gotDB = true;
+        } else if(arg == "-mat") {
             const std::string val = argv[++i];
 
             options.sequenceType  = cudasw4::SequenceType::Protein; // by default
@@ -110,19 +136,19 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
             if(val == "blosum50_20") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM50_20;
             if(val == "blosum62_20") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM62_20;
             if(val == "blosum80_20") options.subMatrixType = cudasw4::SubMatrixType::BLOSUM80_20;
-        }else if(arg == "-use_single"){
+        } else if(arg == "-use_single") {
             // use single GPU
-        }else if(arg == "-reverse"){
+        } else if(arg == "-reverse") {
             // calculate scores and alignments also for reverse complement
             options.reverseComplement = true;
-        }else if(arg == "-dpx"){
+        } else if(arg == "-dpx") {
             // use DPX instructions (Hopper GPU cards: H100)
             gotDPX = true;
-        }else if(arg == "-plain"){
+        } else if(arg == "-plain") {
             options.outputMode = ProgramOptions::OutputMode::Plain;
-        }else if(arg == "-out"){
+        } else if(arg == "-out") {
             options.outputfile = argv[++i];
-        }else if(arg == "-outfmt") {
+        } else if(arg == "-outfmt") {
             // qacc, qlen, sacc, slen, score, length, nident, gaps, qstart, qend, sstart, send, positive, btop, topline, middleline, bottomline, reversed
             // options.outputFormat = argv[++i];
         	std::stringstream ss(argv[++i]);
@@ -140,47 +166,48 @@ bool parseArgs(int argc, char** argv, ProgramOptions& options){
         		}
         		options.csvColumns.push_back(columnName);
         	}        
-        }else if(arg == "-progress_key"){
+        } else if(arg == "-progress_key") {
             // search identifier used in search progress notifications
             options.progressKey = std::string(argv[++i]);
-        }else if(arg == "-progress_pipe"){
+        } else if(arg == "-progress_pipe") {
             // progress pipe file path
             options.progressPipePath = std::string(argv[++i]);
-        }else{
+        } else {
             std::cout << "Unexpected arg " << arg << "\n";
         }
     }
 
     //set specific gop gex for substitution matrix if no gop gex was set
-    if(options.subMatrixType == cudasw4::SubMatrixType::BLOSUM45 || options.subMatrixType == cudasw4::SubMatrixType::BLOSUM45_20){
+    if (options.subMatrixType == cudasw4::SubMatrixType::BLOSUM45 || options.subMatrixType == cudasw4::SubMatrixType::BLOSUM45_20) {
         if(!gotGop) options.gop = -13;
         if(!gotGex) options.gex = -2;
     }
-    if(options.subMatrixType == cudasw4::SubMatrixType::BLOSUM50 || options.subMatrixType == cudasw4::SubMatrixType::BLOSUM50_20){
+    if (options.subMatrixType == cudasw4::SubMatrixType::BLOSUM50 || options.subMatrixType == cudasw4::SubMatrixType::BLOSUM50_20) {
         if(!gotGop) options.gop = -13;
         if(!gotGex) options.gex = -2;
     }
-    if(options.subMatrixType == cudasw4::SubMatrixType::BLOSUM62 || options.subMatrixType == cudasw4::SubMatrixType::BLOSUM62_20){
+    if (options.subMatrixType == cudasw4::SubMatrixType::BLOSUM62 || options.subMatrixType == cudasw4::SubMatrixType::BLOSUM62_20) {
         if(!gotGop) options.gop = -11;
         if(!gotGex) options.gex = -1;
     }
-    if(options.subMatrixType == cudasw4::SubMatrixType::BLOSUM80 || options.subMatrixType == cudasw4::SubMatrixType::BLOSUM80_20){
+    if (options.subMatrixType == cudasw4::SubMatrixType::BLOSUM80 || options.subMatrixType == cudasw4::SubMatrixType::BLOSUM80_20) {
         if(!gotGop) options.gop = -10;
         if(!gotGex) options.gex = -1;
     }
 
-    if(gotDPX){
+    if (gotDPX) {
         options.singlePassType = cudasw4::KernelType::DPXs16;
         options.manyPassType_small = cudasw4::KernelType::DPXs16;
         options.manyPassType_large = cudasw4::KernelType::DPXs32;
         options.overflowType = cudasw4::KernelType::DPXs32;
     }
 
-    if(!gotQuery){
+    if (!gotQuery) {
         // std::cout << "Query is missing\n";
         return false;
     }
-    if(!gotDB){
+
+    if (!gotDB) {
         // std::cout << "DB prefix is missing\n";
         return false;
     }
@@ -192,7 +219,7 @@ void printVersion() {
     std::cout << "Version: " << cudasw4::PROGRAM_VERSION << std::endl;
 }
 
-void printHelp(int /*argc*/, char** argv){
+void printHelp(int /*argc*/, char** argv) {
     ProgramOptions defaultoptions;
 
     std::cout << "Usage: " << argv[0] << " [options]\n";
@@ -200,7 +227,7 @@ void printHelp(int /*argc*/, char** argv){
 
     std::cout << "   Mandatory\n";
     std::cout << "      -query queryfile : Mandatory. Fasta or Fastq. Can be gzip'ed. Repeat this option for multiple query files\n";
-    std::cout << "      -db dbPrefix : Mandatory. The DB to query against. The same dbPrefix as used for makedb\n";
+    std::cout << "      -db \"<string> <string> ... <string>\" : Mandatory. The DB to query against. The same <string> as used for makedb\n";
     std::cout << "\n";
 
     std::cout << "   Scoring\n";
