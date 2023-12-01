@@ -1370,7 +1370,7 @@ namespace cudasw4{
             // TODO: calculations!!!
             int oldPercent = 100LL * ( 
                 (1.0 / (scan_index.queries_count * scan_index.db_count)) * 
-                (scan_index.db_count * scan_index.db_index + scan_index.query_num + 1.0 * totalNumberOfProcessedSequences / totalNumberOfSequencesToProcess) 
+                (scan_index.queries_count * scan_index.db_index + scan_index.query_num + 1.0 * totalNumberOfProcessedSequences / totalNumberOfSequencesToProcess) 
             );
 			int newPercent = oldPercent;
 
@@ -2118,7 +2118,7 @@ namespace cudasw4{
 
                         newPercent = 100LL * ( 
                             (1.0 / (scan_index.queries_count * scan_index.db_count)) * 
-                            (scan_index.db_count * scan_index.db_index + scan_index.query_num + 1.0 * totalNumberOfProcessedSequences / totalNumberOfSequencesToProcess) 
+                            (scan_index.queries_count * scan_index.db_index + scan_index.query_num + 1.0 * totalNumberOfProcessedSequences / totalNumberOfSequencesToProcess) 
                         );
                         
                         if (newPercent > oldPercent) {
