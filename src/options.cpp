@@ -29,7 +29,7 @@ void printOptions(const ProgramOptions& options) {
     #endif
     std::cout << "reverse complement: " << options.reverseComplement << "\n";
 
-    std::cout << "using db file: " << std::accumulate(
+    std::cout << "using db files: " << std::accumulate(
         std::next(options.databases.begin()), options.databases.end(),
         options.databases[0], // Start with the first element
         [&delimiter](const std::string &a, const std::string &b) {

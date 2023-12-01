@@ -209,77 +209,83 @@ int main(int argc, char* argv[])
         progressFileDescriptor
     );
 
-    if(!options.usePseudoDB){
-        if(options.verbose){
+    size_t db_count = options.databases.size();
+
+    for (size_t db_index = 0; db_index < db_count; db_index ++) {
+
+        if(options.verbose) {
             std::cout << "Reading Database: \n";
         }
-        try{
+        try {
             helpers::CpuTimer timer_read_db("Read DB");
             constexpr bool writeAccess = false;
             const bool prefetchSeq = options.prefetchDBFile;
 
-            auto fullDB_tmp = std::make_shared<cudasw4::DB>(cudasw4::loadDB(options.databases[0], writeAccess, prefetchSeq));
+            auto fullDB_tmp = std::make_shared<cudasw4::DB>(cudasw4::loadDB(options.databases[db_index], writeAccess, prefetchSeq));
             if(options.verbose){
                 timer_read_db.print();
             }
 
             cudaSW4.setDatabase(fullDB_tmp);
-        }catch(cudasw4::LoadDBException& ex){
+        } catch(cudasw4::LoadDBException& ex) {
             if(options.verbose){
                 std::cout << "Failed to map db files. Using fallback db. Error message: " << ex.what() << "\n";
             }
             helpers::CpuTimer timer_read_db("Read DB");
-            auto fullDB_tmp = std::make_shared<cudasw4::DBWithVectors>(cudasw4::loadDBWithVectors(options.databases[0]));
+            auto fullDB_tmp = std::make_shared<cudasw4::DBWithVectors>(cudasw4::loadDBWithVectors(options.databases[db_index]));
             if(options.verbose){
                 timer_read_db.print();
             }
 
             cudaSW4.setDatabase(fullDB_tmp);
         }
-    }
 
-    if(options.verbose){
-        cudaSW4.printDBInfo();
-        if(options.printLengthPartitions){
-            cudaSW4.printDBLengthPartitions();
-        }
-    }
-
-    if(options.loadFullDBToGpu){
-        cudaSW4.prefetchFullDBToGpus();
-    }
-
-    size_t query_num = 0;
-    for(const auto& query : options.queries){
-
-        cudaSW4.totalTimerStart();
-
-        std::cout << "Processing query " << query_num << " ... ";
-        std::cout.flush();
-        const std::string& header   = query.header;
-        const std::string& sequence = query.sequence;
-
-        ScanResult scanResult = cudaSW4.scan(query_num, options.queries.size(), sequence.data(), sequence.size());
-        if(options.verbose){
-            std::cout << "Done. Scan time: " << scanResult.stats.seconds << " s, " << scanResult.stats.gcups << " GCUPS\n";
-        }else{
-            std::cout << "Done.\n";
-        }
-
-        if(options.numTopOutputs > 0){
-            if(options.outputMode == ProgramOptions::OutputMode::Plain){
-                printScanResultPlain(outputfile, scanResult, cudaSW4, options);
-            }else{
-                printScanResultCSV(outputfile, scanResult, cudaSW4, options, query_num, sequence.size(), header);
+        if (options.verbose) {
+            cudaSW4.printDBInfo();
+            if(options.printLengthPartitions){
+                cudaSW4.printDBLengthPartitions();
             }
-            outputfile.flush();
         }
 
-        query_num++;
+        if (options.loadFullDBToGpu) {
+            cudaSW4.prefetchFullDBToGpus();
+        }
 
-        auto totalBenchmarkStats = cudaSW4.totalTimerStop();
-        if(options.verbose){
-            std::cout << "Total time: " << totalBenchmarkStats.seconds << " s, " << totalBenchmarkStats.gcups << " GCUPS\n";
+        size_t queries_count = options.queries.size();
+        size_t query_num = 0;
+        for (const auto& query : options.queries) {
+
+            cudaSW4.totalTimerStart();
+
+            cudasw4::DbQueryIndex scan_index(db_index, db_count, query_num, queries_count);
+
+            std::cout << "Processing query " << query_num << " ... ";
+            std::cout.flush();
+            const std::string& header   = query.header;
+            const std::string& sequence = query.sequence;
+
+            ScanResult scanResult = cudaSW4.scan(scan_index, sequence.data(), sequence.size());
+            if(options.verbose){
+                std::cout << "Done. Scan time: " << scanResult.stats.seconds << " s, " << scanResult.stats.gcups << " GCUPS\n";
+            }else{
+                std::cout << "Done.\n";
+            }
+
+            if(options.numTopOutputs > 0){
+                if(options.outputMode == ProgramOptions::OutputMode::Plain){
+                    printScanResultPlain(outputfile, scanResult, cudaSW4, options);
+                }else{
+                    printScanResultCSV(outputfile, scanResult, cudaSW4, options, query_num, sequence.size(), header);
+                }
+                outputfile.flush();
+            }
+
+            query_num++;
+
+            auto totalBenchmarkStats = cudaSW4.totalTimerStop();
+            if(options.verbose){
+                std::cout << "Total time: " << totalBenchmarkStats.seconds << " s, " << totalBenchmarkStats.gcups << " GCUPS\n";
+            }
         }
     }
 

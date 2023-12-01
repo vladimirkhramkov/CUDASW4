@@ -70,6 +70,17 @@ namespace cudasw4{
         }
     }
 
+    struct DbQueryIndex {
+        size_t db_index;
+        size_t db_count;
+        size_t query_num;
+        size_t queries_count;
+
+        DbQueryIndex() = default;
+        DbQueryIndex(size_t db_index_, size_t db_count_, size_t query_num_, size_t queries_count_)
+            : db_index(db_index_), db_count(db_count_), query_num(query_num_), queries_count(queries_count_) {};
+    };
+
     struct BenchmarkStats{
         int numOverflows{};
         double seconds{};
@@ -692,7 +703,7 @@ namespace cudasw4{
         }
 
         // used in main.cu
-        ScanResult scan(const size_t query_num, const size_t queries_count, const char* query, SequenceLengthT queryLength) {
+        ScanResult scan(const DbQueryIndex& scan_index, const char* query, SequenceLengthT queryLength) {
             if(!dbIsReady){
                 throw std::runtime_error("DB not set correctly");
             }
@@ -706,7 +717,7 @@ namespace cudasw4{
 
             setQuery(query, queryLength);
 
-            scanDatabaseForQuery(query_num, queries_count);
+            scanDatabaseForQuery(scan_index);
 
             scanTimer->stop();
 
@@ -1216,7 +1227,7 @@ namespace cudasw4{
         }
 
         // used here
-        void scanDatabaseForQuery(const size_t query_num, const size_t queries_count){
+        void scanDatabaseForQuery(const DbQueryIndex& scan_index){
             const int numGpus = deviceIds.size();
             const int masterDeviceId = deviceIds[0];
             const auto& masterStream1 = gpuStreams[0];
@@ -1242,7 +1253,7 @@ namespace cudasw4{
                 cudaStreamWaitEvent(gpuStreams[gpu], masterevent1, 0); CUERR;
             }
 
-            processQueryOnGpus(query_num, queries_count);
+            processQueryOnGpus(scan_index);
 
             for(int gpu = 0; gpu < numGpus; gpu++){
                 cudaSetDevice(deviceIds[gpu]); CUERR;
@@ -1340,7 +1351,7 @@ namespace cudasw4{
         }
 
         // used here
-        void processQueryOnGpus(const size_t query_num, const size_t queries_count) {
+        void processQueryOnGpus(const DbQueryIndex& scan_index) {
 
             const std::vector<std::vector<DBdataView>>& dbPartitionsPerGpu = subPartitionsForGpus;
             const std::vector<std::vector<DeviceBatchCopyToPinnedPlan>>& batchPlansPerGpu_batched = batchPlans;
@@ -1356,7 +1367,11 @@ namespace cudasw4{
             size_t totalNumberOfSequencesToProcess = std::reduce(numberOfSequencesPerGpu.begin(), numberOfSequencesPerGpu.end());
             
             size_t totalNumberOfProcessedSequences = 0;
-            int oldPercent = 100LL * ( (1.0 / queries_count) * (query_num + 1.0 * totalNumberOfProcessedSequences / totalNumberOfSequencesToProcess) );
+            // TODO: calculations!!!
+            int oldPercent = 100LL * ( 
+                (1.0 / (scan_index.queries_count * scan_index.db_count)) * 
+                (scan_index.db_count * scan_index.db_index + scan_index.query_num + 1.0 * totalNumberOfProcessedSequences / totalNumberOfSequencesToProcess) 
+            );
 			int newPercent = oldPercent;
 
             dprintf(progressFileDescription, "%s#%d\n", progressKey.c_str(), newPercent);
@@ -2101,7 +2116,11 @@ namespace cudasw4{
         
                         totalNumberOfProcessedSequences += plan.usedSeq;
 
-                        newPercent = 100LL * ( (1.0 / queries_count) * (query_num + 1.0 * totalNumberOfProcessedSequences / totalNumberOfSequencesToProcess) );
+                        newPercent = 100LL * ( 
+                            (1.0 / (scan_index.queries_count * scan_index.db_count)) * 
+                            (scan_index.db_count * scan_index.db_index + scan_index.query_num + 1.0 * totalNumberOfProcessedSequences / totalNumberOfSequencesToProcess) 
+                        );
+                        
                         if (newPercent > oldPercent) {
                             dprintf(progressFileDescription, "%s#%d\n", progressKey.c_str(), newPercent);
                             oldPercent = newPercent;
