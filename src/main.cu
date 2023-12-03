@@ -3,6 +3,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 #include "hpc_helpers/all_helpers.cuh"
 #include "hpc_helpers/peer_access.cuh"
@@ -15,59 +16,31 @@
 #include "config.hpp"
 #include "reverse.hpp"
 
-void printScanResultPlain(
-    std::ostream& os, 
-    const cudasw4::ScanResult& scanResult, 
-    const cudasw4::CudaSW4& cudaSW4, 
-    const ProgramOptions& options
-) {
-    const int n = scanResult.scores.size();
-    for(int i = 0; i < n; i++){
-        if (scanResult.scores[i] < options.minScore) continue;
-
-        const auto referenceId = scanResult.referenceIds[i];
-        os << "Result " << i << ".";
-        os << " Score: " << scanResult.scores[i] << ".";
-        os << " Length: " << cudaSW4.getReferenceLength(referenceId) << ".";
-        os << " Header " << cudaSW4.getReferenceHeader(referenceId) << ".";
-        os << " referenceId " << referenceId;
-        os << "\n";
-        //std::cout << " Sequence " << cudaSW4.getReferenceSequence(referenceId) << "\n";
-    }
-}
-
 void printScanResultCSV(
     std::ostream& os, 
-    const cudasw4::ScanResult& scanResult, 
-    const cudasw4::CudaSW4& cudaSW4, 
-    const ProgramOptions& options,
-    int64_t queryId,
-    cudasw4::SequenceLengthT queryLength,
-    std::string_view queryHeader
+    const std::vector<cudasw4::HitResult>& totalResults, 
+    const ProgramOptions& options
 ) {
     constexpr char sep = ',';
 
-    const int n = scanResult.scores.size();
-    for(int i = 0; i < n; i++){
-        if (scanResult.scores[i] < options.minScore) continue;
+    const int n = std::min((int)totalResults.size(), options.numTopOutputs);
 
-        const auto referenceId = scanResult.referenceIds[i];
-        
+    for(int i = 0; i < n; i++){
         for (unsigned int paramIndex = 0; paramIndex < options.csvColumns.size(); ++paramIndex) {
             std::string parameter = options.csvColumns[paramIndex];
             if (paramIndex)
                 os << sep;
 
             if (parameter == "qacc") {
-                os << queryHeader || queryId; //initialQueries[answerEntry.queryIndex].first;
+                os << totalResults[i].queryHeader || totalResults[i].queryId;
             } else if (parameter == "qlen") {
-                os << queryLength; //initialQueries[answerEntry.queryIndex].second.length();
+                os << totalResults[i].queryLength;
             } else if (parameter == "sacc") {
-                os << cudaSW4.getReferenceHeader(referenceId);//answerEntry.getSacc();
+                os << totalResults[i].subjectHeader;
             } else if (parameter == "slen") {
-                os << cudaSW4.getReferenceLength(referenceId); //answerEntry.getSlen();
+                os << totalResults[i].subjectLength;
             } else if (parameter == "score") {
-                os << scanResult.scores[i]; //answerEntry.getScore();
+                os << totalResults[i].score;
             } else if (parameter == "length") {
                 // os << stringAlignment[0].length();
             } else if (parameter == "nident") {
@@ -211,6 +184,9 @@ int main(int argc, char* argv[])
 
     size_t db_count = options.databases.size();
 
+    std::unordered_set<std::string> uniqueHeaders;
+    std::vector<cudasw4::HitResult> totalResults;
+
     for (size_t db_index = 0; db_index < db_count; db_index ++) {
 
         if(options.verbose) {
@@ -265,19 +241,32 @@ int main(int argc, char* argv[])
             const std::string& sequence = query.sequence;
 
             ScanResult scanResult = cudaSW4.scan(scan_index, sequence.data(), sequence.size());
+
             if(options.verbose){
                 std::cout << "Done. Scan time: " << scanResult.stats.seconds << " s, " << scanResult.stats.gcups << " GCUPS\n";
             }else{
                 std::cout << "Done.\n";
             }
 
-            if(options.numTopOutputs > 0){
-                if(options.outputMode == ProgramOptions::OutputMode::Plain){
-                    printScanResultPlain(outputfile, scanResult, cudaSW4, options);
-                }else{
-                    printScanResultCSV(outputfile, scanResult, cudaSW4, options, query_num, sequence.size(), header);
+            for (size_t i = 0; i < scanResult.scores.size(); ++i) {
+                if (scanResult.scores[i] < options.minScore) break;
+
+                std::string refHeader = (std::string)cudaSW4.getReferenceHeader(scanResult.referenceIds[i]);
+
+                if (uniqueHeaders.find(refHeader) == uniqueHeaders.end()) {
+                    // The header is not in the set, so it's a new unique element
+                    totalResults.push_back(
+                        cudasw4::HitResult(
+                            query_num, 
+                            header,
+                            sequence.size(), 
+                            refHeader,
+                            cudaSW4.getReferenceLength(scanResult.referenceIds[i]),
+                            scanResult.scores[i]
+                        )
+                    );
+                    uniqueHeaders.insert(refHeader); // Add the header to the set
                 }
-                outputfile.flush();
             }
 
             query_num++;
@@ -287,6 +276,16 @@ int main(int argc, char* argv[])
                 std::cout << "Total time: " << totalBenchmarkStats.seconds << " s, " << totalBenchmarkStats.gcups << " GCUPS\n";
             }
         }
+    }
+
+    if(options.numTopOutputs > 0){
+        std::sort(totalResults.begin(), totalResults.end(), [](const auto& a, const auto& b) {
+            return a.score > b.score;
+        });
+
+        printScanResultCSV(outputfile, totalResults, options);
+        
+        outputfile.flush();
     }
 
     if (progressFileDescriptor != -1) close(progressFileDescriptor);

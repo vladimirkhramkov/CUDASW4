@@ -87,6 +87,31 @@ namespace cudasw4{
         double gcups{};
     };
 
+    struct HitResult {
+        int queryId{};
+        std::string queryHeader{};
+        int queryLength{};
+        std::string subjectHeader{};
+        int subjectLength{};
+        int score{};
+        HitResult() = default;
+        HitResult(
+            int queryId_,
+            const std::string& queryHeader_, 
+            int queryLength_,
+            const std::string& subjectHeader_, 
+            int subjectLength_,
+            int score_
+        ): 
+            queryId(queryId_),
+            queryHeader(queryHeader_), 
+            queryLength(queryLength_), 
+            subjectHeader(subjectHeader_), 
+            subjectLength(subjectLength_), 
+            score(score_) 
+        {};
+    };
+
     struct ScanResult{
         std::vector<int> scores{};
         std::vector<ReferenceIdT> referenceIds{};
