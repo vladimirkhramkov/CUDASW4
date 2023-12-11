@@ -105,8 +105,10 @@ struct HybridBatch{
 
 
 template<class Batch>
-void loadWholeFileIntoBatch_withPaddedSequences(const std::string& inputfilename, Batch& batch){
+size_t loadWholeFileIntoBatch_withPaddedSequences(kseqpp::KseqPP& reader, Batch& batch, const size_t availableMem){
     constexpr int ALIGN = 4;
+
+    size_t processedSequencesSize = 0;
 
     batch.chars.clear();
     batch.offsets.clear();
@@ -116,7 +118,7 @@ void loadWholeFileIntoBatch_withPaddedSequences(const std::string& inputfilename
     batch.offsets.push_back(0);
     batch.headerOffsets.push_back(0);
 
-    kseqpp::KseqPP reader(inputfilename);
+    // kseqpp::KseqPP reader(inputfilename);
     while(reader.next() >= 0){
         const std::string& header = reader.getCurrentHeader();
         const std::string& sequence = reader.getCurrentSequence();
@@ -130,7 +132,13 @@ void loadWholeFileIntoBatch_withPaddedSequences(const std::string& inputfilename
 
         batch.headers.insert(batch.headers.end(), header.begin(), header.end());
         batch.headerOffsets.push_back(batch.headers.size());
+
+        processedSequencesSize += sequence.size();
+        if (processedSequencesSize >= availableMem)
+            break;
     }
+
+    return processedSequencesSize;
 }
 
 template<class Batch>
@@ -292,7 +300,7 @@ int main(int argc, char* argv[])
         std::cout << "Input file may be gzip'ed. pathtodb must exist.\n";
         std::cout << "Options:\n";
         std::cout << "    --type val : Sequence type: (n|p). Nucleotides (n) or proteins (p) . Default value: p.\n";
-        std::cout << "    --mem val : Memory limit. Can use suffix K,M,G. If makedb requires more memory, temp files in temp directory will be used. Default all available memory.\n";
+        std::cout << "    --mem val : Memory limit. Can use suffix K,M,G. Default (auto) all available memory.\n";
         std::cout << "    --tempdir val : Temp directory for temporary files. Must exist. Default is db output directory.\n";
         return 0;
     }
@@ -332,11 +340,8 @@ int main(int argc, char* argv[])
     const std::string outputPrefix = argv[2];
     std::string temppath = outputPrefix;
     cudasw4::SequenceType sequenceType = cudasw4::SequenceType::Protein;
-    size_t availableMem = getAvailableMemoryInKB() * 1024;
     constexpr size_t GB = 1024*1024*1024;
-    if(availableMem > 1*GB){
-        availableMem -= 1*GB;
-    }
+    size_t availableMem = 16 * GB;
 
     for(int i = 3; i < argc; i++){
         const std::string arg = argv[i];
@@ -351,7 +356,12 @@ int main(int argc, char* argv[])
                 return 1;
             }
         }else if(arg == "--mem"){
-            availableMem = parseMemoryString(argv[++i]);
+            std::string memArg = argv[++i];
+            if (memArg == "auto") {
+                availableMem = getAvailableMemoryInKB() * 1024 / 2; // Let's use no more than 50% of available RAM
+            } else {
+                availableMem = parseMemoryString(memArg);
+            }
         }else if(arg == "--tempdir"){
            temppath = argv[++i];
            if(temppath.back() != '/'){
@@ -363,51 +373,57 @@ int main(int argc, char* argv[])
     }
     std::cout << "availableMem: " << availableMem << "\n";
 
-    //InMemoryBatch batch;
-    HybridBatch batch(temppath, availableMem);
+    InMemoryBatch batch;
+    //HybridBatch batch(temppath, availableMem);
 
     std::cout << "Parsing file\n";
     helpers::CpuTimer timer1("file parsing");
+    kseqpp::KseqPP reader(fastafilename);
+    int batchIndex = 0;
+    bool processedSequences = false;
+
+    do {
+        processedSequences = loadWholeFileIntoBatch_withPaddedSequences(reader, batch, availableMem);
+
+        std::cout << "Number of input sequences:  " << batch.offsets.size() - 1 << '\n';
+        std::cout << "Number of input characters: " << batch.chars.size() << '\n';
+
+        std::cout << "Converting sequences\n";
+        helpers::CpuTimer timer2("sequences conversion");
+
+        if (sequenceType == cudasw4::SequenceType::Nucleotide) {
+            thrust::transform(
+                thrust::omp::par,        // 1. Execution policy
+                batch.chars.begin(),     // 2. Input Begin Iterator
+                batch.chars.end(),       // 3. Input End Iterator
+                batch.chars.begin(),     // 4. Output Begin Iterator
+                cudasw4::ConvertNA{}     // 5. Unary Operator (Function Object)
+            );
+        } else {
+            thrust::transform(
+                thrust::omp::par,        // 1. Execution policy
+                batch.chars.begin(),     // 2. Input Begin Iterator
+                batch.chars.end(),       // 3. Input End Iterator
+                batch.chars.begin(),     // 4. Output Begin Iterator
+                cudasw4::ConvertAA_20{}     // 5. Unary Operator (Function Object)
+            );        
+        }
+
+        timer2.print();
+
+        std::cout << "Creating DB files\n";
+        const std::string batchOutputPrefix = outputPrefix + std::to_string(batchIndex);
+        helpers::CpuTimer timer3("db creation");
+        createDBfilesFromSequenceBatch(batchOutputPrefix, batch);
+        timer3.print();
+
+        batchIndex ++;
+    } while (processedSequences);
+
     //loadWholeFileIntoBatch_withPaddedConvertedSequences(fastafilename, batch, sequenceType);
-    loadWholeFileIntoBatch_withPaddedSequences(fastafilename, batch);
+    //loadWholeFileIntoBatch_withPaddedSequences(fastafilename, batch);
     timer1.print();
 
-    std::cout << "Number of input sequences:  " << batch.offsets.size() - 1 << '\n';
-    std::cout << "Number of input characters: " << batch.chars.size() << '\n';
-
-    return 0;
-
-    std::cout << "Converting sequences\n";
-    helpers::CpuTimer timer2("sequences conversion");
-
-    if (sequenceType == cudasw4::SequenceType::Nucleotide) {
-        thrust::transform(
-            thrust::omp::par,        // 1. Execution policy
-            batch.chars.begin(),     // 2. Input Begin Iterator
-            batch.chars.end(),       // 3. Input End Iterator
-            batch.chars.begin(),     // 4. Output Begin Iterator
-            cudasw4::ConvertNA{}     // 5. Unary Operator (Function Object)
-        );
-    } else {
-        thrust::transform(
-            thrust::omp::par,        // 1. Execution policy
-            batch.chars.begin(),     // 2. Input Begin Iterator
-            batch.chars.end(),       // 3. Input End Iterator
-            batch.chars.begin(),     // 4. Output Begin Iterator
-            cudasw4::ConvertAA_20{}     // 5. Unary Operator (Function Object)
-        );        
-    }
-
-    timer2.print();
-
-    std::cout << "Creating DB files\n";
-    const std::string batchOutputPrefix = outputPrefix + std::to_string(0);
-    helpers::CpuTimer timer3("db creation");
-    createDBfilesFromSequenceBatch(batchOutputPrefix, batch);
-    timer3.print();
-
     cudasw4::DBGlobalInfo info;
-
     cudasw4::writeGlobalDbInfo(outputPrefix, info);
-
 }
