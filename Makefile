@@ -36,7 +36,7 @@ COMPILE = $(COMPILER) $(NVCC_FLAGS) $(DIALECT) $(OPTIMIZATION) $(WARNINGS) -c $<
 $(ARTIFACT): $(BUILDDIR)/main.o $(BUILDDIR)/sequence_io.o $(BUILDDIR)/dbdata.o $(BUILDDIR)/options.o $(BUILDDIR)/sub_matrix.o $(BUILDDIR)/half2_kernel_instantiations.o $(BUILDDIR)/float_kernel_instantiations.o $(BUILDDIR)/dpx_s32_kernel_instantiations.o $(BUILDDIR)/dpx_s16_kernel_instantiations.o $(BUILDDIR)/reverse.o
 	$(COMPILER) $^ -o $(ARTIFACT) $(LDFLAGS)
 
-$(MAKEDB): $(BUILDDIR)/makedb.o $(BUILDDIR)/sequence_io.o $(BUILDDIR)/dbdata.o
+$(MAKEDB): $(BUILDDIR)/makedb.o $(BUILDDIR)/sequence_io.o $(BUILDDIR)/dbdata.o $(BUILDDIR)/dumpncbi.o $(BUILDDIR)/dumphdr.o $(BUILDDIR)/dumpseq.o
 	$(COMPILER) $^ -o $(MAKEDB) $(LDFLAGS)
 
 $(MODIFYDB): $(BUILDDIR)/modifydb.o $(BUILDDIR)/sequence_io.o $(BUILDDIR)/dbdata.o
@@ -73,8 +73,17 @@ $(BUILDDIR)/dpx_s16_kernel_instantiations.o: src/dpx_s16_kernel_instantiations.c
 $(BUILDDIR)/dpx_s32_kernel_instantiations.o: src/dpx_s32_kernel_instantiations.cu src/dpx_s32_kernels.cuh
 	$(COMPILE)
 
-$(BUILDDIR)/makedb.o : src/makedb.cpp src/dbdata.hpp src/sequence_io.h
+$(BUILDDIR)/makedb.o : src/makedb.cpp src/dbdata.hpp src/sequence_io.h src/dumphdr.h src/dumpncbi.h src/dumpseq.h src/dumpmisc.h
 	$(COMPILE)
 
 $(BUILDDIR)/modifydb.o : src/modifydb.cpp src/dbdata.hpp src/sequence_io.h
 	$(COMPILE)
+
+$(BUILDDIR)/dumpncbi.o : src/dumpncbi.cpp src/dumpncbi.h
+	$(COMPILE) -Xcompiler -Wno-write-strings -Xcompiler -Wno-sign-compare -Xcompiler -Wno-unused-but-set-variable  -Xcompiler -Wno-unused-variable
+
+$(BUILDDIR)/dumphdr.o : src/dumphdr.cpp src/dumphdr.h
+	$(COMPILE) -Xcompiler -Wno-write-strings -Xcompiler -Wno-sign-compare -Xcompiler -Wno-unused-variable -Xcompiler  -Wno-maybe-uninitialized
+
+$(BUILDDIR)/dumpseq.o : src/dumpseq.cpp src/dumpseq.h
+	$(COMPILE) -Xcompiler -Wno-write-strings -Xcompiler -Wno-sign-compare -Xcompiler -Wno-char-subscripts
