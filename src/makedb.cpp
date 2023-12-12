@@ -26,6 +26,8 @@
 #include <thrust/execution_policy.h>
 #include <thrust/transform.h>
 
+#include "dumpncbi.h"
+
 std::size_t getAvailableMemoryInKB_linux(){
     //https://stackoverflow.com/questions/349889/how-do-you-determine-the-amount-of-linux-system-ram-in-c
     std::string token;
@@ -301,6 +303,7 @@ int main(int argc, char* argv[])
         std::cout << "Options:\n";
         std::cout << "    -type val : Sequence type: (n|p). Nucleotides (n) or proteins (p) . Default value: p.\n";
         std::cout << "    -mem val : Memory limit. Can use suffix K,M,G. Default (auto) all available memory.\n";
+        std::cout << "    -blast : Use BLAST database files instead of FASTA/FASTQ.\n";
         std::cout << "    -tempdir val : Temp directory for temporary files. Must exist. Default is db output directory.\n";
         return 0;
     }
@@ -342,6 +345,7 @@ int main(int argc, char* argv[])
     cudasw4::SequenceType sequenceType = cudasw4::SequenceType::Protein;
     constexpr size_t GB = 1024*1024*1024;
     size_t availableMem = 16 * GB;
+    bool useBLastFormat = false;
 
     for(int i = 3; i < argc; i++){
         const std::string arg = argv[i];
@@ -362,6 +366,8 @@ int main(int argc, char* argv[])
             } else {
                 availableMem = parseMemoryString(memArg);
             }
+        }else if(arg == "-blast"){
+            useBLastFormat = true;
         }else if(arg == "-tempdir"){
            temppath = argv[++i];
            if(temppath.back() != '/'){
