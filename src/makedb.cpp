@@ -299,9 +299,9 @@ int main(int argc, char* argv[])
         std::cout << "Usage:\n  " << argv[0] << " <FASTA/FASTQ filename> pathtodb/dbname [options]\n";
         std::cout << "Input file may be gzip'ed. pathtodb must exist.\n";
         std::cout << "Options:\n";
-        std::cout << "    --type val : Sequence type: (n|p). Nucleotides (n) or proteins (p) . Default value: p.\n";
-        std::cout << "    --mem val : Memory limit. Can use suffix K,M,G. Default (auto) all available memory.\n";
-        std::cout << "    --tempdir val : Temp directory for temporary files. Must exist. Default is db output directory.\n";
+        std::cout << "    -type val : Sequence type: (n|p). Nucleotides (n) or proteins (p) . Default value: p.\n";
+        std::cout << "    -mem val : Memory limit. Can use suffix K,M,G. Default (auto) all available memory.\n";
+        std::cout << "    -tempdir val : Temp directory for temporary files. Must exist. Default is db output directory.\n";
         return 0;
     }
 
@@ -345,24 +345,24 @@ int main(int argc, char* argv[])
 
     for(int i = 3; i < argc; i++){
         const std::string arg = argv[i];
-        if(arg == "--type"){
-            if(i + 1 < argc) { // Make sure there is a value after --type
+        if(arg == "-type"){
+            if(i + 1 < argc) { // Make sure there is a value after -type
                 std::string typeArg = argv[++i];
                 if(typeArg == "n") {
                     sequenceType = cudasw4::SequenceType::Nucleotide;
                 }
             } else {
-                std::cerr << "No sequence type specified after --type." << std::endl;
+                std::cerr << "No sequence type specified after -type." << std::endl;
                 return 1;
             }
-        }else if(arg == "--mem"){
+        }else if(arg == "-mem"){
             std::string memArg = argv[++i];
             if (memArg == "auto") {
                 availableMem = getAvailableMemoryInKB() * 1024 / 2; // Let's use no more than 50% of available RAM
             } else {
                 availableMem = parseMemoryString(memArg);
             }
-        }else if(arg == "--tempdir"){
+        }else if(arg == "-tempdir"){
            temppath = argv[++i];
            if(temppath.back() != '/'){
                 temppath += '/';
@@ -382,8 +382,12 @@ int main(int argc, char* argv[])
     int batchIndex = 0;
     bool processedSequences = false;
 
-    do {
+    while (true) {
+
         processedSequences = loadWholeFileIntoBatch_withPaddedSequences(reader, batch, availableMem);
+
+        if (!processedSequences)
+            break;
 
         std::cout << "Number of input sequences:  " << batch.offsets.size() - 1 << '\n';
         std::cout << "Number of input characters: " << batch.chars.size() << '\n';
@@ -418,7 +422,7 @@ int main(int argc, char* argv[])
         timer3.print();
 
         batchIndex ++;
-    } while (processedSequences);
+    }
 
     //loadWholeFileIntoBatch_withPaddedConvertedSequences(fastafilename, batch, sequenceType);
     //loadWholeFileIntoBatch_withPaddedSequences(fastafilename, batch);
