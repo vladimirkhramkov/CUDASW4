@@ -47,7 +47,6 @@ std::size_t getAvailableMemoryInKB_linux(){
     return 0;
 }
 
-
 std::size_t getCurrentRSS_linux(){
     std::ifstream in("/proc/self/statm");
     std::size_t tmp, rss;
@@ -107,7 +106,7 @@ struct HybridBatch{
 
 
 template<class Batch>
-size_t loadWholeFileIntoBatch_withPaddedSequences(kseqpp::KseqPP& reader, Batch& batch, const size_t availableMem){
+size_t loadWholeFileIntoBatch_withPaddedSequences(std::unique_ptr<ReaderInterface> reader, Batch& batch, const size_t availableMem){
     constexpr int ALIGN = 4;
 
     size_t processedSequencesSize = 0;
@@ -346,6 +345,7 @@ int main(int argc, char* argv[])
     constexpr size_t GB = 1024*1024*1024;
     size_t availableMem = 16 * GB;
     bool useBLastFormat = false;
+    std::unique_ptr<ReaderInterface> reader;
 
     for(int i = 3; i < argc; i++){
         const std::string arg = argv[i];
@@ -384,7 +384,19 @@ int main(int argc, char* argv[])
 
     std::cout << "Parsing file\n";
     helpers::CpuTimer timer1("file parsing");
-    kseqpp::KseqPP reader(fastafilename);
+    if (useBLastFormat) {
+        reader = std::make_unique<BlastDBReader>(MAX_SEQUENCE_LENGTH);
+        if(!reader->open(fastafilename)) {
+            return 1;
+        }
+        // if (!CurrentDatabase->open(databasesList)) {
+		//     printError("Can't open BLAST database\n");
+    	// }
+    } else {
+        reader = std::make_unique<kseqpp::KseqPP>(fastafilename);
+        // kseqpp::KseqPP reader(fastafilename);
+    }
+    
     int batchIndex = 0;
     bool processedSequences = false;
 

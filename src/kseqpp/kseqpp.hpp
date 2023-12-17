@@ -1,4 +1,4 @@
-#ifndef  kseq_pp_h
+#ifndef kseq_pp_h
 #define kseq_pp_h
 
 #include "gziphelpers.hpp"
@@ -16,6 +16,7 @@
 #include <functional>
 #include <cstring>
 
+#include "reader_interface.h"
 
 namespace kseqpp{
 
@@ -36,7 +37,7 @@ namespace kseqpp{
     The following code for parsing sequence files is adapted from klib/kseq.h which is available under MIT license
 */
 
-struct KseqPP{    
+struct KseqPP: public ReaderInterface {    
 
 public:
 

@@ -35,11 +35,17 @@
 
 #ifndef INCLUDE_DUMPNCBI_H
 #define INCLUDE_DUMPNCBI_H
+
+#define MAX_SEQUENCE_LENGTH 10000000
+
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <vector>
 #include <stdint.h>
+
+#include "reader_interface.h"
+
 using namespace std;
 
 class SingleDBReader {
@@ -85,7 +91,7 @@ private:
 	char* hdr_file;
 };
 
-class BlastDBReader {
+class BlastDBReader: public ReaderInterface {
 public:
 	BlastDBReader();
 	~BlastDBReader();
@@ -94,6 +100,9 @@ public:
 	// gets next sequence from database and writes it in res
 	// if its length exceeds maxLen, no characters will be read and (maxLen + 1) will be returned
 	int getSeq(char* res, int maxLen);
+	int next();
+	std::string& getCurrentHeader();
+	std::string& getCurrentSequence();
 	// returns global index of the next sequence (not processed so far)
 	int getSeqIndex();
 	// returns SBN of the last processed sequence
@@ -112,6 +121,10 @@ private:
 	int seqIndex;
 	bool isDna;
 	int basesNumber;
+	char currentSequense [MAX_SEQUENCE_LENGTH + 1];
+	int currentLength;
+	int currentSequenseId;
+	string currentSequenceAccession;
 };
 
 

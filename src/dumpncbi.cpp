@@ -182,6 +182,26 @@ int BlastDBReader::getSeq(char* res, int maxLen) {
 	return singleDBReaders[openedBaseFileIndex].getSeq(res, maxLen);
 }
 
+int BlastDBReader::next() {
+	do {
+		currentLength = getSeq(currentSequense, MAX_SEQUENCE_LENGTH + 1);
+		currentSequenseId = getSeqIndex() - 1;
+		currentSequenceAccession = getSeqName(currentSequenseId);
+
+	} while (currentLength > MAX_SEQUENCE_LENGTH);
+
+	return currentLength;
+}
+
+std::string& BlastDBReader::getCurrentHeader() {
+	return currentSequenceAccession;
+}
+
+std::string& BlastDBReader::getCurrentSequence()  {
+	std::string sequenceString(currentSequense, currentLength);
+	return sequenceString;
+}
+
 SingleDBReader::SingleDBReader() {
 	file = 0;
 	hdr_file = 0;
