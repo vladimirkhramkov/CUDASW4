@@ -9,6 +9,7 @@ public:
     virtual int next() = 0;
     virtual std::string& getCurrentHeader() = 0;
     virtual std::string& getCurrentSequence() = 0;
+    virtual void close();
 };
 
 #endif // READER_INTERFACE_H

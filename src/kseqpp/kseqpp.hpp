@@ -150,6 +150,8 @@ public:
         return qual;
     }
 
+    void close() {}
+
 private:
 
     struct kstream_t {

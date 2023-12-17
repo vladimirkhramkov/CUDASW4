@@ -448,4 +448,6 @@ int main(int argc, char* argv[])
 
     cudasw4::DBGlobalInfo info;
     cudasw4::writeGlobalDbInfo(outputPrefix, info);
+
+    reader.close();
 }
