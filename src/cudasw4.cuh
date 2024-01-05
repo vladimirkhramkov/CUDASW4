@@ -2140,17 +2140,16 @@ namespace cudasw4{
                         variables.processedBatches++;
         
                         totalNumberOfProcessedSequences += plan.usedSeq;
-
-                        newPercent = 100LL * ( 
-                            (1.0 / (scan_index.queries_count * scan_index.db_count)) * 
-                            (scan_index.queries_count * scan_index.db_index + scan_index.query_num + 1.0 * totalNumberOfProcessedSequences / totalNumberOfSequencesToProcess) 
-                        );
-                        
-                        if (newPercent > oldPercent) {
-                            dprintf(progressFileDescription, "%s#%d\n", progressKey.c_str(), newPercent);
-                            oldPercent = newPercent;
-                        }
                     } 
+                    newPercent = 100LL * ( 
+                        (1.0 / (scan_index.queries_count * scan_index.db_count)) * 
+                        (scan_index.queries_count * scan_index.db_index + scan_index.query_num + 1.0 * (1.0 * variables.processedBatches / variables.batchPlansPtr->size()) * totalNumberOfProcessedSequences / totalNumberOfSequencesToProcess) 
+                    );
+                    
+                    if (newPercent > oldPercent) {
+                        dprintf(progressFileDescription, "%s#%d\n", progressKey.c_str(), newPercent);
+                        oldPercent = newPercent;
+                    }
                 }
         
             } //while not done
