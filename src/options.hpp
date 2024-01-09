@@ -75,6 +75,10 @@ struct ProgramOptions{
             default: return "Unnamed output mode";
         }
     }
+
+    bool isDnaDatabase() const {
+        return (sequenceType == cudasw4::SequenceType::Nucleotide);
+    }
 };
 
 void printOptions(const ProgramOptions& options);

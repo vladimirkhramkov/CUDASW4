@@ -7,6 +7,60 @@
 #include <string>
 
 namespace cudasw4{
+    
+struct HitResult {
+    int queryId{};
+    std::string queryHeader{};
+    int queryLength{};
+    std::string querySequence{};
+    std::string subjectHeader{};
+    int subjectLength{};
+    std::string subjectSequence{};
+    int score{};
+    std::vector<std::pair<int, int>> alignment{};
+    bool reversed = false;
+    HitResult() = default;
+    HitResult(
+        int queryId_,
+        const std::string& queryHeader_, 
+        int queryLength_,
+        const std::string& querySequence_, 
+        const std::string& subjectHeader_, 
+        int subjectLength_,
+        const std::string& subjectSequence_, 
+        int score_
+    ): 
+        queryId(queryId_),
+        queryHeader(queryHeader_), 
+        queryLength(queryLength_), 
+        querySequence(querySequence_), 
+        subjectHeader(subjectHeader_), 
+        subjectLength(subjectLength_), 
+        subjectSequence(subjectSequence_), 
+        score(score_) 
+    {};
+    std::string getSacc() {
+        return subjectHeader;
+    }
+    int getSlen() {
+        return subjectLength;
+    }
+    int getScore() {
+        return score;
+    }
+    int getQstart() {
+        return alignment[0].first;
+    }
+    int getQend() {
+        return alignment.back().first;
+    }
+    int getSstart() {
+        return alignment[0].second;
+    }
+    int getSend() {
+        return alignment.back().second;
+    }
+};
 
 enum class SequenceType {
     Nucleotide,
@@ -37,9 +91,9 @@ enum class SubMatrixType{
     BLOSUM80_20,
 };
 
-struct PAM30_20{
+struct PAM30_20 {
     static constexpr char low = -17;
-    static constexpr int dim = 20 + 1;
+    static constexpr int dim = 21;
 
     static constexpr std::array<char, dim*dim> get1D() {
         return  {
@@ -68,21 +122,32 @@ struct PAM30_20{
         };
     }
 
-    static constexpr std::array<std::array<char, dim>, dim> get2D() {
-        auto flat = get1D();
+    static std::array<std::array<char, dim>, dim> get2D() {
+        auto flat = PAM30_20::get1D();
         std::array<std::array<char, dim>, dim> result{};
-        for(int y = 0; y < dim; y++){
-            for(int x = 0; x < dim; x++){
+        for(int y = 0; y < dim; y++) {
+            for(int x = 0; x < dim; x++) {
                 result[y][x] = flat[y * dim + x];
             }
         }
         return result;
     }
+
+    static std::array<std::array<int, 32>, 32> get32() {
+        auto flat = PAM30_20::get1D();
+        std::array<std::array<int, 32>, 32> result{0};
+        for(size_t y = 0; y < dim; y++) {
+            for(size_t x = 0; x < dim; x++) {
+                result[y][x] = (int)flat[y * dim + x];
+            }
+        }
+        return result;
+    }   
 };
 
 struct PAM70_20{
     static constexpr char low = -11;
-    static constexpr int dim = 20 + 1;
+    static constexpr int dim = 21;
 
     static constexpr std::array<char, dim*dim> get1D() {
         return  {
@@ -111,21 +176,32 @@ struct PAM70_20{
         };
     }
 
-    static constexpr std::array<std::array<char, dim>, dim> get2D() {
-        auto flat = get1D();
+    static std::array<std::array<char, dim>, dim> get2D() {
+        auto flat = PAM70_20::get1D();
         std::array<std::array<char, dim>, dim> result{};
-        for(int y = 0; y < dim; y++){
-            for(int x = 0; x < dim; x++){
+        for(int y = 0; y < dim; y++) {
+            for(int x = 0; x < dim; x++) {
                 result[y][x] = flat[y * dim + x];
             }
         }
         return result;
     }
+
+    static std::array<std::array<int, 32>, 32> get32() {
+        auto flat = PAM70_20::get1D();
+        std::array<std::array<int, 32>, 32> result{0};
+        for(size_t y = 0; y < dim; y++) {
+            for(size_t x = 0; x < dim; x++) {
+                result[y][x] = (int)flat[y * dim + x];
+            }
+        }
+        return result;
+    }   
 };
 
 struct BLOSUM45_20{
     static constexpr char low = -5;
-    static constexpr int dim = 20 + 1;
+    static constexpr int dim = 21;
 
     static constexpr std::array<char, dim*dim> get1D() {
         return  {
@@ -154,21 +230,32 @@ struct BLOSUM45_20{
         };
     }
 
-    static constexpr std::array<std::array<char, dim>, dim> get2D() {
-        auto flat = get1D();
+    static std::array<std::array<char, dim>, dim> get2D() {
+        auto flat = BLOSUM45_20::get1D();
         std::array<std::array<char, dim>, dim> result{};
-        for(int y = 0; y < dim; y++){
-            for(int x = 0; x < dim; x++){
+        for(int y = 0; y < dim; y++) {
+            for(int x = 0; x < dim; x++) {
                 result[y][x] = flat[y * dim + x];
             }
         }
         return result;
     }
+
+    static std::array<std::array<int, 32>, 32> get32() {
+        auto flat = BLOSUM45_20::get1D();
+        std::array<std::array<int, 32>, 32> result{0};
+        for(size_t y = 0; y < dim; y++) {
+            for(size_t x = 0; x < dim; x++) {
+                result[y][x] = (int)flat[y * dim + x];
+            }
+        }
+        return result;
+    }   
 };
 
 struct BLOSUM50_20{
     static constexpr char low = -5;
-    static constexpr int dim = 20+1;
+    static constexpr int dim = 21;
 
     static constexpr std::array<char, dim*dim> get1D() {
         return  {
@@ -197,21 +284,32 @@ struct BLOSUM50_20{
         };
     }
 
-    static constexpr std::array<std::array<char, dim>, dim> get2D() {
-        auto flat = get1D();
+    static std::array<std::array<char, dim>, dim> get2D() {
+        auto flat = BLOSUM50_20::get1D();
         std::array<std::array<char, dim>, dim> result{};
-        for(int y = 0; y < dim; y++){
-            for(int x = 0; x < dim; x++){
+        for(int y = 0; y < dim; y++) {
+            for(int x = 0; x < dim; x++) {
                 result[y][x] = flat[y * dim + x];
             }
         }
         return result;
     }
+
+    static std::array<std::array<int, 32>, 32> get32() {
+        auto flat = BLOSUM50_20::get1D();
+        std::array<std::array<int, 32>, 32> result{0};
+        for(size_t y = 0; y < dim; y++) {
+            for(size_t x = 0; x < dim; x++) {
+                result[y][x] = (int)flat[y * dim + x];
+            }
+        }
+        return result;
+    }   
 };
 
 struct BLOSUM62_20{
     static constexpr char low = -4;
-    static constexpr int dim = 20+1;
+    static constexpr int dim = 21;
 
     static constexpr std::array<char, dim*dim> get1D() {
         return  {
@@ -240,21 +338,32 @@ struct BLOSUM62_20{
         };
     }
 
-    static constexpr std::array<std::array<char, dim>, dim> get2D() {
-        auto flat = get1D();
+    static std::array<std::array<char, dim>, dim> get2D() {
+        auto flat = BLOSUM62_20::get1D();
         std::array<std::array<char, dim>, dim> result{};
-        for(int y = 0; y < dim; y++){
-            for(int x = 0; x < dim; x++){
+        for(int y = 0; y < dim; y++) {
+            for(int x = 0; x < dim; x++) {
                 result[y][x] = flat[y * dim + x];
             }
         }
         return result;
     }
+
+    static std::array<std::array<int, 32>, 32> get32() {
+        auto flat = BLOSUM62_20::get1D();
+        std::array<std::array<int, 32>, 32> result{0};
+        for(size_t y = 0; y < dim; y++) {
+            for(size_t x = 0; x < dim; x++) {
+                result[y][x] = (int)flat[y * dim + x];
+            }
+        }
+        return result;
+    }   
 };
 
 struct BLOSUM80_20{
     static constexpr char low = -6;
-    static constexpr int dim = 20 + 1;
+    static constexpr int dim = 21;
 
     static constexpr std::array<char, dim*dim> get1D() {
         return  {
@@ -283,16 +392,27 @@ struct BLOSUM80_20{
         };
     }
 
-    static constexpr std::array<std::array<char, dim>, dim> get2D() {
-        auto flat = get1D();
+    static std::array<std::array<char, dim>, dim> get2D() {
+        auto flat = BLOSUM80_20::get1D();
         std::array<std::array<char, dim>, dim> result{};
-        for(int y = 0; y < dim; y++){
-            for(int x = 0; x < dim; x++){
+        for(int y = 0; y < dim; y++) {
+            for(int x = 0; x < dim; x++) {
                 result[y][x] = flat[y * dim + x];
             }
         }
         return result;
     }
+
+    static std::array<std::array<int, 32>, 32> get32() {
+        auto flat = BLOSUM80_20::get1D();
+        std::array<std::array<int, 32>, 32> result{0};
+        for(size_t y = 0; y < dim; y++) {
+            for(size_t x = 0; x < dim; x++) {
+                result[y][x] = (int)flat[y * dim + x];
+            }
+        }
+        return result;
+    }   
 };
 
 struct PAM30{
@@ -332,16 +452,27 @@ struct PAM30{
         };
     }
 
-    static constexpr std::array<std::array<char, dim>, dim> get2D() {
-        auto flat = get1D();
+    static std::array<std::array<char, dim>, dim> get2D() {
+        auto flat = PAM30::get1D();
         std::array<std::array<char, dim>, dim> result{};
-        for(int y = 0; y < dim; y++){
-            for(int x = 0; x < dim; x++){
+        for(int y = 0; y < dim; y++) {
+            for(int x = 0; x < dim; x++) {
                 result[y][x] = flat[y * dim + x];
             }
         }
         return result;
     }
+
+    static std::array<std::array<int, 32>, 32> get32() {
+        auto flat = PAM30::get1D();
+        std::array<std::array<int, 32>, 32> result{0};
+        for(size_t y = 0; y < dim; y++) {
+            for(size_t x = 0; x < dim; x++) {
+                result[y][x] = (int)flat[y * dim + x];
+            }
+        }
+        return result;
+    }   
 };
 
 struct PAM70{
@@ -381,16 +512,27 @@ struct PAM70{
         };
     }
 
-    static constexpr std::array<std::array<char, dim>, dim> get2D() {
-        auto flat = get1D();
+    static std::array<std::array<char, dim>, dim> get2D() {
+        auto flat = PAM70::get1D();
         std::array<std::array<char, dim>, dim> result{};
-        for(int y = 0; y < dim; y++){
-            for(int x = 0; x < dim; x++){
+        for(int y = 0; y < dim; y++) {
+            for(int x = 0; x < dim; x++) {
                 result[y][x] = flat[y * dim + x];
             }
         }
         return result;
     }
+
+    static std::array<std::array<int, 32>, 32> get32() {
+        auto flat = PAM70::get1D();
+        std::array<std::array<int, 32>, 32> result{0};
+        for(size_t y = 0; y < dim; y++) {
+            for(size_t x = 0; x < dim; x++) {
+                result[y][x] = (int)flat[y * dim + x];
+            }
+        }
+        return result;
+    }   
 };
 
 struct BLOSUM45{
@@ -430,16 +572,27 @@ struct BLOSUM45{
         };
     }
 
-    static constexpr std::array<std::array<char, dim>, dim> get2D() {
-        auto flat = get1D();
+    static std::array<std::array<char, dim>, dim> get2D() {
+        auto flat = BLOSUM45::get1D();
         std::array<std::array<char, dim>, dim> result{};
-        for(int y = 0; y < dim; y++){
-            for(int x = 0; x < dim; x++){
+        for(int y = 0; y < dim; y++) {
+            for(int x = 0; x < dim; x++) {
                 result[y][x] = flat[y * dim + x];
             }
         }
         return result;
     }
+
+    static std::array<std::array<int, 32>, 32> get32() {
+        auto flat = BLOSUM45::get1D();
+        std::array<std::array<int, 32>, 32> result{0};
+        for(size_t y = 0; y < dim; y++) {
+            for(size_t x = 0; x < dim; x++) {
+                result[y][x] = (int)flat[y * dim + x];
+            }
+        }
+        return result;
+    }   
 };
 
 struct BLOSUM50{
@@ -479,16 +632,27 @@ struct BLOSUM50{
         };
     }
 
-    static constexpr std::array<std::array<char, dim>, dim> get2D() {
-        auto flat = get1D();
+    static std::array<std::array<char, dim>, dim> get2D() {
+        auto flat = BLOSUM50::get1D();
         std::array<std::array<char, dim>, dim> result{};
-        for(int y = 0; y < dim; y++){
-            for(int x = 0; x < dim; x++){
+        for(int y = 0; y < dim; y++) {
+            for(int x = 0; x < dim; x++) {
                 result[y][x] = flat[y * dim + x];
             }
         }
         return result;
     }
+
+    static std::array<std::array<int, 32>, 32> get32() {
+        auto flat = BLOSUM50::get1D();
+        std::array<std::array<int, 32>, 32> result{0};
+        for(size_t y = 0; y < dim; y++) {
+            for(size_t x = 0; x < dim; x++) {
+                result[y][x] = (int)flat[y * dim + x];
+            }
+        }
+        return result;
+    }   
 };
 
 struct BLOSUM62{
@@ -528,16 +692,27 @@ struct BLOSUM62{
         };
     }
 
-    static constexpr std::array<std::array<char, dim>, dim> get2D() {
-        auto flat = get1D();
+    static std::array<std::array<char, dim>, dim> get2D() {
+        auto flat = BLOSUM62::get1D();
         std::array<std::array<char, dim>, dim> result{};
-        for(int y = 0; y < dim; y++){
-            for(int x = 0; x < dim; x++){
+        for(int y = 0; y < dim; y++) {
+            for(int x = 0; x < dim; x++) {
                 result[y][x] = flat[y * dim + x];
             }
         }
         return result;
     }
+
+    static std::array<std::array<int, 32>, 32> get32() {
+        auto flat = BLOSUM62::get1D();
+        std::array<std::array<int, 32>, 32> result{0};
+        for(size_t y = 0; y < dim; y++) {
+            for(size_t x = 0; x < dim; x++) {
+                result[y][x] = (int)flat[y * dim + x];
+            }
+        }
+        return result;
+    }   
 };
 
 struct BLOSUM80{
@@ -577,21 +752,32 @@ struct BLOSUM80{
         };
     }
 
-    static constexpr std::array<std::array<char, dim>, dim> get2D() {
-        auto flat = get1D();
+    static std::array<std::array<char, dim>, dim> get2D() {
+        auto flat = BLOSUM80::get1D();
         std::array<std::array<char, dim>, dim> result{};
-        for(int y = 0; y < dim; y++){
-            for(int x = 0; x < dim; x++){
+        for(int y = 0; y < dim; y++) {
+            for(int x = 0; x < dim; x++) {
                 result[y][x] = flat[y * dim + x];
             }
         }
         return result;
     }
+
+    static std::array<std::array<int, 32>, 32> get32() {
+        auto flat = BLOSUM80::get1D();
+        std::array<std::array<int, 32>, 32> result{0};
+        for(size_t y = 0; y < dim; y++) {
+            for(size_t x = 0; x < dim; x++) {
+                result[y][x] = (int)flat[y * dim + x];
+            }
+        }
+        return result;
+    }   
 };
 
 struct DNA{
     static constexpr char low = -4;
-    static constexpr int dim = 20 + 1;
+    static constexpr int dim = 21;
 
     static constexpr std::array<char, dim*dim> get1D() {
         return  {
@@ -620,21 +806,32 @@ struct DNA{
         };
     }
 
-    static constexpr std::array<std::array<char, dim>, dim> get2D() {
-        auto flat = get1D();
+    static std::array<std::array<char, dim>, dim> get2D() {
+        auto flat = DNA::get1D();
         std::array<std::array<char, dim>, dim> result{};
-        for(int y = 0; y < dim; y++){
-            for(int x = 0; x < dim; x++){
+        for(int y = 0; y < dim; y++) {
+            for(int x = 0; x < dim; x++) {
                 result[y][x] = flat[y * dim + x];
             }
         }
         return result;
     }
+
+    static std::array<std::array<int, 32>, 32> get32() {
+        auto flat = DNA::get1D();
+        std::array<std::array<int, 32>, 32> result{0};
+        for(size_t y = 0; y < dim; y++) {
+            for(size_t x = 0; x < dim; x++) {
+                result[y][x] = (int)flat[y * dim + x];
+            }
+        }
+        return result;
+    }        
 };
 
 struct NUC44{
     static constexpr char low = -4;
-    static constexpr int dim = 20 + 1;
+    static constexpr int dim = 21;
 
     static constexpr std::array<char, dim*dim> get1D() {
         return  {
@@ -663,16 +860,27 @@ struct NUC44{
         };
     }
 
-    static constexpr std::array<std::array<char, dim>, dim> get2D() {
-        auto flat = get1D();
+    static std::array<std::array<char, dim>, dim> get2D() {
+        auto flat = NUC44::get1D();
         std::array<std::array<char, dim>, dim> result{};
-        for(int y = 0; y < dim; y++){
-            for(int x = 0; x < dim; x++){
+        for(int y = 0; y < dim; y++) {
+            for(int x = 0; x < dim; x++) {
                 result[y][x] = flat[y * dim + x];
             }
         }
         return result;
     }
+
+    static std::array<std::array<int, 32>, 32> get32() {
+        auto flat = NUC44::get1D();
+        std::array<std::array<int, 32>, 32> result{0};
+        for(size_t y = 0; y < dim; y++) {
+            for(size_t x = 0; x < dim; x++) {
+                result[y][x] = (int)flat[y * dim + x];
+            }
+        }
+        return result;
+    }   
 };
 
 } //namespace cudasw4

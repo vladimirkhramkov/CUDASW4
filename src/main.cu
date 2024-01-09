@@ -10,91 +10,13 @@
 
 // #include "kseqpp/kseqpp.hpp"
 // #include "sequence_io.h"
+#include "types.hpp"
 #include "options.hpp"
 #include "dbdata.hpp"
 #include "cudasw4.cuh"
 #include "config.hpp"
 #include "reverse.hpp"
-
-void printScanResultCSV(
-    std::ostream& os, 
-    const std::vector<cudasw4::HitResult>& totalResults, 
-    const ProgramOptions& options
-) {
-    constexpr char sep = ',';
-
-    const int n = std::min((int)totalResults.size(), options.numTopOutputs);
-
-    for(int i = 0; i < n; i++){
-        for (unsigned int paramIndex = 0; paramIndex < options.csvColumns.size(); ++paramIndex) {
-            std::string parameter = options.csvColumns[paramIndex];
-            if (paramIndex)
-                os << sep;
-
-            if (parameter == "qacc") {
-                os << totalResults[i].queryHeader || totalResults[i].queryId;
-            } else if (parameter == "qlen") {
-                os << totalResults[i].queryLength;
-            } else if (parameter == "sacc") {
-                os << totalResults[i].subjectHeader;
-            } else if (parameter == "slen") {
-                os << totalResults[i].subjectLength;
-            } else if (parameter == "score") {
-                os << totalResults[i].score;
-            } else if (parameter == "length") {
-                // os << stringAlignment[0].length();
-            } else if (parameter == "nident") {
-                // int matches = 0;
-                // for (int i = 0; i < stringAlignment[0].length(); ++i)
-                //     if (stringAlignment[0][i] != '-' && (stringAlignment[0][i] == stringAlignment[2][i] || stringAlignment[1][i] == '|' && nucleotideSearch))
-                //         ++matches;
-                // os << matches;
-            } else if (parameter == "gaps") {
-                // int gaps = 0;
-                // for (int i = 0; i < stringAlignment[0].length(); ++i)
-                //     gaps += (stringAlignment[0][i] == '-')
-                //             + (stringAlignment[2][i] == '-');
-                // os << gaps;
-            } else if (parameter == "qstart") {
-                // os << answerEntry.getQstart() + 1;
-            } else if (parameter == "qend") {
-                // os << answerEntry.getQend() + 1;
-            } else if (parameter == "sstart") {
-                // os << answerEntry.getSstart() + 1;
-            } else if (parameter == "send") {
-                // os << answerEntry.getSend() + 1;
-            } else if (parameter == "positive") {
-                // int positiveMatches = 0;
-                // for (int i = 0; i < stringAlignment[0].length(); ++i) {
-                //     if (stringAlignment[0][i] != '-'
-                //             && stringAlignment[2][i] != '-') {
-                //         positiveMatches +=
-                //                 scoringMatrix[CFastaFile::amino_acids_trans[stringAlignment[0][i]]][CFastaFile::amino_acids_trans[stringAlignment[2][i]]]
-                //                         > 0;
-                //     }
-                // }
-                // os << positiveMatches;
-            } else if (parameter == "btop") {
-                // os << BTOP;
-            } else if (parameter == "topline") {
-                // os << stringAlignment[0];
-            } else if (parameter == "middleline") {
-                // os << stringAlignment[1];
-            } else if (parameter == "bottomline") {
-                // os << stringAlignment[2];
-            } else if (parameter == "reversed") {
-                // os << answerEntry.reversed;
-            } else if (parameter == "qcovs") {
-                // int coverageLength = queryCoverageLength[answerEntry.sequenceName];
-                // os << fixed << setprecision(2) << 100.0 * coverageLength / query.length();
-                // rounded percent
-                //os << (200 * coverageLength + query.length()) / (2 * query.length());
-            }
-        }
-        os << "\n";
-
-    }
-}
+#include "alignments.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -255,13 +177,17 @@ int main(int argc, char* argv[])
 
                 if (uniqueHeaders.find(refHeader) == uniqueHeaders.end()) {
                     // The header is not in the set, so it's a new unique element
+                    // std::string refSequence = (std::string)cudaSW4.getReferenceSequence(scanResult.referenceIds[i]);
                     totalResults.push_back(
                         cudasw4::HitResult(
                             query_num, 
                             header,
-                            sequence.size(), 
+                            sequence.size(),
+                            sequence,
                             refHeader,
                             cudaSW4.getReferenceLength(scanResult.referenceIds[i]),
+                            //TODO: think about how to store subject sequence for final alignment calculation
+                            cudaSW4.getReferenceSequence(scanResult.referenceIds[i]), 
                             scanResult.scores[i]
                         )
                     );
@@ -283,7 +209,15 @@ int main(int argc, char* argv[])
             return a.score > b.score;
         });
 
-        printScanResultCSV(outputfile, totalResults, options);
+        cudasw2::calculateAlignments(
+            outputfile, 
+            totalResults, 
+            options,
+            cudasw4::hostSubMatrix, 
+            cudasw4::hostSubMatrixDim
+        );
+
+        // cudasw2::printScanResultCSV(outputfile, totalResults, options);
         
         outputfile.flush();
     }

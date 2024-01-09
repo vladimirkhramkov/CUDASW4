@@ -18,6 +18,7 @@ extern __constant__ int deviceSubMatrixDimSquared;
 #endif
 
 extern char hostSubMatrix[25*25];
+extern int scoringMatrix[32][32];
 extern int hostSubMatrixDim;
 extern int hostSubMatrixDimSquared;
 

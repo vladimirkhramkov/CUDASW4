@@ -27,7 +27,7 @@ namespace cudasw4{
                     hostSubMatrixDim = dim;
                     hostSubMatrixDimSquared = dim * dim;
                     auto it = std::copy(subMatrix.begin(), subMatrix.end(), hostSubMatrix);
-                    assert(std::distance(hostSubMatrix, it) <= 25 * 25);                
+                    assert(std::distance(hostSubMatrix, it) <= 25 * 25);
                 }
                 break;               
             case SubMatrixType::NUC44:
